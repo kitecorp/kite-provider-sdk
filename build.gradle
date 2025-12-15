@@ -1,0 +1,47 @@
+plugins {
+    id 'java-library'
+}
+
+group = 'cloud.kitelang'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // Use 'api' so provider implementors get transitive access
+    api project(':kite-proto')
+    api project(':kite-api')
+
+    // MessagePack for ResourcePayload serialization
+    api 'org.msgpack:jackson-dataformat-msgpack:0.9.10'
+
+    // Jackson for JSON handling
+    api 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
+
+    // Lombok for boilerplate reduction
+    compileOnly 'org.projectlombok:lombok:1.18.36'
+    annotationProcessor 'org.projectlombok:lombok:1.18.36'
+
+    // Logging
+    implementation 'org.apache.logging.log4j:log4j-api:2.24.1'
+
+    // Testing
+    testImplementation platform('org.junit:junit-bom:5.10.0')
+    testImplementation 'org.junit.jupiter:junit-jupiter'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(21))
+    }
+}
+
+test {
+    useJUnitPlatform()
+    // Required for msgpack DirectByteBuffer access in Java 17+
+    jvmArgs '--add-opens=java.base/java.nio=ALL-UNNAMED',
+            '--add-opens=java.base/sun.nio.ch=ALL-UNNAMED'
+}
