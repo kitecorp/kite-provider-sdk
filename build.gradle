@@ -1,12 +1,35 @@
 plugins {
     id 'java-library'
+    id 'maven-publish'
 }
 
 group = 'cloud.kitelang'
 version = '0.1.0'
 
+publishing {
+    publications {
+        maven(MavenPublication) {
+            from components.java
+            artifactId = 'kite-provider-sdk'
+
+            pom {
+                name = 'Kite Provider SDK'
+                description = 'SDK for building Kite infrastructure providers'
+                url = 'https://github.com/kitecorp/kite-provider-sdk'
+                licenses {
+                    license {
+                        name = 'Apache License 2.0'
+                        url = 'https://www.apache.org/licenses/LICENSE-2.0'
+                    }
+                }
+            }
+        }
+    }
+}
+
 repositories {
     mavenCentral()
+    mavenLocal()
 }
 
 dependencies {
