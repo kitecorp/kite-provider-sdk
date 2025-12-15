@@ -179,13 +179,13 @@ provider.proto:
 ┌─────────────────────────────────────┐
 │ message CreateResource.Request {    │
 │     string type_name = 1;           │
-│     ResourcePayload config = 2;  ◄─────┼── msgpack bytes, not typed proto
+│     ResourcePayload config = 2;  ◄──┼── msgpack bytes, not typed proto
 │ }                                   │
 └─────────────────────────────────────┘
 
 dynamic.proto:
 ┌─────────────────────────────────────┐
-│ message ResourcePayload {              │
+│ message ResourcePayload {           │
 │     bytes msgpack = 1;  ◄───────────┼── Resource serialized as msgpack
 │     bytes json = 2;                 │
 │ }                                   │
