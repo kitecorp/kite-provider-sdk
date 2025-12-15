@@ -161,7 +161,7 @@ Create `provider.json` in your distribution:
 
 ## Design: ResourcePayload Pattern
 
-The SDK uses **ResourcePayload** (msgpack-encoded bytes) instead of generating protobuf classes for each resource type. This follows Terraform's proven approach.
+The SDK uses **ResourcePayload** (msgpack-encoded bytes) instead of generating protobuf classes for each resource type.
 
 ### Why Not Protobuf Per Resource?
 
