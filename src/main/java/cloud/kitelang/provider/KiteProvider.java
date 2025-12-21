@@ -4,7 +4,7 @@ import cloud.kitelang.api.annotations.TypeName;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.Getter;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -41,7 +41,7 @@ import java.util.*;
  * }
  * }</pre>
  */
-@Log4j2
+@Slf4j
 @Getter
 public abstract class KiteProvider {
     private static final String PROVIDER_JSON_PATH = "META-INF/kite/provider.json";

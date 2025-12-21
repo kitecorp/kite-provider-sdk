@@ -2,7 +2,7 @@ package cloud.kitelang.provider;
 
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -14,7 +14,7 @@ import java.util.concurrent.TimeUnit;
  * <p>Uses a handshake protocol where the engine sets environment variables
  * (magic cookie, protocol version) and the provider outputs its port to stdout.</p>
  */
-@Log4j2
+@Slf4j
 public class ProviderServer {
     private static final String HANDSHAKE_PREFIX = "KITE_PLUGIN";
     private static final int PROTOCOL_VERSION = 1;

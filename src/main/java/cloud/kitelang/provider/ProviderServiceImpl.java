@@ -1,12 +1,11 @@
 package cloud.kitelang.provider;
 
-import cloud.kitelang.api.resource.Property;
 import cloud.kitelang.api.schema.Schema;
 import cloud.kitelang.proto.v1.*;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
-import lombok.extern.log4j.Log4j2;
+import lombok.extern.slf4j.Slf4j;
 import org.msgpack.jackson.dataformat.MessagePackMapper;
 
 import java.util.List;
@@ -14,7 +13,7 @@ import java.util.List;
 /**
  * gRPC service implementation that delegates to a KiteProvider.
  */
-@Log4j2
+@Slf4j
 public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     private final KiteProvider provider;
     private final ObjectMapper msgpackMapper;

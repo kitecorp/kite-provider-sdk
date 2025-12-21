@@ -37,6 +37,9 @@ dependencies {
     api project(':kite-proto')
     api project(':kite-api')
 
+    // gRPC Netty transport for provider servers
+    api 'io.grpc:grpc-netty-shaded:1.77.0'
+
     // MessagePack for ResourcePayload serialization
     api 'org.msgpack:jackson-dataformat-msgpack:0.9.10'
 
@@ -47,8 +50,8 @@ dependencies {
     compileOnly 'org.projectlombok:lombok:1.18.42'
     annotationProcessor 'org.projectlombok:lombok:1.18.42'
 
-    // Logging
-    implementation 'org.apache.logging.log4j:log4j-api:2.24.1'
+    // SLF4J logging API
+    api 'org.slf4j:slf4j-api:2.0.17'
 
     // Testing
     testImplementation platform('org.junit:junit-bom:6.0.1')
