@@ -13,7 +13,7 @@ import java.nio.file.Path;
  * java -cp ... cloud.kitelang.provider.docgen.DocGeneratorCli \
  *     --provider com.example.MyProvider \
  *     --output docs \
- *     --format html,markdown,kite
+ *     --format html,markdown,schemas
  * </pre>
  */
 public class DocGeneratorCli {
@@ -21,7 +21,7 @@ public class DocGeneratorCli {
     public static void main(String[] args) throws Exception {
         String providerClass = null;
         String outputDir = "docs";
-        String formats = "html,markdown,kite";
+        String formats = "html,markdown,schemas";
 
         // Parse arguments
         for (int i = 0; i < args.length; i++) {
@@ -70,9 +70,9 @@ public class DocGeneratorCli {
                     generator.generateCombinedMarkdown(outputPath.resolve("REFERENCE.md"));
                     System.out.println("Generated combined Markdown in " + outputPath.resolve("REFERENCE.md"));
                 }
-                case "kite" -> {
-                    generator.generateKite(outputPath.resolve("kite"));
-                    System.out.println("Generated Kite schemas in " + outputPath.resolve("kite"));
+                case "schemas", "kite" -> {
+                    generator.generateKite(outputPath.resolve("schemas"));
+                    System.out.println("Generated Kite schemas in " + outputPath.resolve("schemas"));
                 }
                 default -> System.err.println("Unknown format: " + format);
             }
@@ -91,18 +91,18 @@ public class DocGeneratorCli {
             Options:
               --provider, -p <class>   Provider class name (required)
               --output, -o <dir>       Output directory (default: docs)
-              --format, -f <formats>   Comma-separated formats (default: html,markdown,kite)
+              --format, -f <formats>   Comma-separated formats (default: html,markdown,schemas)
                                        - html: Interactive HTML pages
                                        - markdown: Markdown files
                                        - combined-markdown: Single REFERENCE.md
-                                       - kite: Kite schema files (.kite)
+                                       - schemas: Kite schema files (.kite)
               --help, -h               Show this help message
 
             Example:
               java -cp app.jar cloud.kitelang.provider.docgen.DocGeneratorCli \\
                   --provider cloud.kitelang.provider.aws.AwsProvider \\
                   --output docs \\
-                  --format html,markdown,kite
+                  --format html,markdown,schemas
             """);
     }
 }
