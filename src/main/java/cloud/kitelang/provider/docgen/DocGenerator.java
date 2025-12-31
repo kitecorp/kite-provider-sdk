@@ -867,7 +867,7 @@ public class DocGenerator {
         }
 
         if (!cloudProps.isEmpty()) {
-            sb.append("<h2>Cloud-Managed Attributes</h2>\n");
+            sb.append("<h2>Cloud Properties</h2>\n");
             sb.append("<p class=\"description\">These attributes are set by the cloud provider and available after resource creation.</p>\n");
             sb.append(generatePropertiesTable(cloudProps, true));
         }
@@ -997,7 +997,7 @@ public class DocGenerator {
      * Generates an HTML table for a list of properties with sortable columns.
      *
      * @param properties the properties to display
-     * @param isCloudSection true if this table is for cloud-managed attributes (hides redundant cloud badge)
+     * @param isCloudSection true if this table is for Cloud Properties (hides redundant cloud badge)
      */
     private String generatePropertiesTable(List<PropertyInfo> properties, boolean isCloudSection) {
         var sb = new StringBuilder();
@@ -1115,9 +1115,9 @@ public class DocGenerator {
             sb.append(generateMarkdownPropertiesTable(userProps));
         }
 
-        // Cloud-managed attributes
+        // Cloud Properties
         if (!cloudProps.isEmpty()) {
-            sb.append("## Cloud-Managed Attributes\n\n");
+            sb.append("## Cloud Properties\n\n");
             sb.append("_These attributes are set by the cloud provider after resource creation._\n\n");
             sb.append(generateMarkdownPropertiesTable(cloudProps));
         }
