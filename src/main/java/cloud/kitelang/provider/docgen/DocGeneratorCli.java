@@ -70,6 +70,10 @@ public class DocGeneratorCli {
                     generator.generateCombinedMarkdown(outputPath.resolve("REFERENCE.md"));
                     System.out.println("Generated combined Markdown in " + outputPath.resolve("REFERENCE.md"));
                 }
+                case "kite" -> {
+                    generator.generateKite(outputPath.resolve("kite"));
+                    System.out.println("Generated Kite schemas in " + outputPath.resolve("kite"));
+                }
                 default -> System.err.println("Unknown format: " + format);
             }
         }
@@ -87,15 +91,18 @@ public class DocGeneratorCli {
             Options:
               --provider, -p <class>   Provider class name (required)
               --output, -o <dir>       Output directory (default: build/docs/provider)
-              --format, -f <formats>   Comma-separated formats: html, markdown, combined-markdown
-                                       (default: html,markdown)
+              --format, -f <formats>   Comma-separated formats (default: html,markdown)
+                                       - html: Interactive HTML pages
+                                       - markdown: Markdown files
+                                       - combined-markdown: Single REFERENCE.md
+                                       - kite: Kite schema files (.kite)
               --help, -h               Show this help message
 
             Example:
               java -cp app.jar cloud.kitelang.provider.docgen.DocGeneratorCli \\
                   --provider cloud.kitelang.provider.aws.AwsProvider \\
                   --output docs \\
-                  --format html,markdown,combined-markdown
+                  --format html,markdown,kite
             """);
     }
 }
