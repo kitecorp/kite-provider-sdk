@@ -21,7 +21,7 @@ public class DocGeneratorCli {
     public static void main(String[] args) throws Exception {
         String providerClass = null;
         String outputDir = "build/docs/provider";
-        String formats = "html,markdown";
+        String formats = "html,markdown,kite";
 
         // Parse arguments
         for (int i = 0; i < args.length; i++) {
