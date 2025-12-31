@@ -398,6 +398,73 @@ providers:
 
 See `kite-providers/grpc-example` for a complete example provider.
 
+## Documentation Generation
+
+The SDK includes a documentation generator that creates HTML and Markdown reference documentation for your provider's resources.
+
+### Automatic Generation (Gradle Plugin)
+
+If you're using the `kite-provider-gradle-plugin`, documentation is generated automatically during build:
+
+```groovy
+plugins {
+    id 'cloud.kitelang.provider'
+}
+
+kiteProvider {
+    name = 'my-provider'
+
+    // Documentation options (all optional, shown with defaults)
+    docsEnabled = true                    // Generate docs during build
+    docsFormats = 'html,markdown'         // Output formats
+    docsOutputDir = 'build/docs/provider' // Output directory
+}
+```
+
+Run `./gradlew generateProviderDocs` to generate documentation, or it runs automatically after `./gradlew build`.
+
+### Programmatic Generation
+
+You can also generate documentation programmatically:
+
+```java
+var provider = new MyProvider();
+var generator = new DocGenerator(provider);
+
+// Generate separate HTML pages
+generator.generateHtml(Path.of("docs/html"));
+
+// Generate separate Markdown pages
+generator.generateMarkdown(Path.of("docs/markdown"));
+
+// Generate single combined Markdown file
+generator.generateCombinedMarkdown(Path.of("docs/REFERENCE.md"));
+```
+
+### CLI Usage
+
+The SDK includes a CLI for generating documentation:
+
+```bash
+java -cp my-provider.jar cloud.kitelang.provider.docgen.DocGeneratorCli \
+    --provider com.example.MyProvider \
+    --output docs \
+    --format html,markdown,combined-markdown
+```
+
+### Generated Output
+
+**HTML Output (`docs/html/`):**
+- `index.html` - Provider overview with resource list
+- `{ResourceName}.html` - Individual resource documentation
+
+**Markdown Output (`docs/markdown/`):**
+- `README.md` - Provider overview with resource links
+- `{ResourceName}.md` - Individual resource documentation
+
+**Combined Markdown (`docs/REFERENCE.md`):**
+- Single file with all resources for easy distribution
+
 ## Module Structure
 
 ```
@@ -411,5 +478,8 @@ kite-provider-sdk/
     ├── ProviderServer.java    # gRPC server and handshake
     ├── ProviderServiceImpl.java # gRPC service implementation
     ├── Diagnostic.java        # Error/warning reporting
-    └── ProviderUtils.java     # Utility methods
+    ├── ProviderUtils.java     # Utility methods
+    └── docgen/                # Documentation generation
+        ├── DocGenerator.java  # Core documentation generator
+        └── DocGeneratorCli.java # CLI wrapper
 ```
