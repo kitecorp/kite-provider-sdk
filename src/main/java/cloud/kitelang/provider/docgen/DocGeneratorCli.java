@@ -12,15 +12,15 @@ import java.nio.file.Path;
  * <pre>
  * java -cp ... cloud.kitelang.provider.docgen.DocGeneratorCli \
  *     --provider com.example.MyProvider \
- *     --output build/docs \
- *     --format html,markdown
+ *     --output docs \
+ *     --format html,markdown,kite
  * </pre>
  */
 public class DocGeneratorCli {
 
     public static void main(String[] args) throws Exception {
         String providerClass = null;
-        String outputDir = "build/docs/provider";
+        String outputDir = "docs";
         String formats = "html,markdown,kite";
 
         // Parse arguments
@@ -90,8 +90,8 @@ public class DocGeneratorCli {
 
             Options:
               --provider, -p <class>   Provider class name (required)
-              --output, -o <dir>       Output directory (default: build/docs/provider)
-              --format, -f <formats>   Comma-separated formats (default: html,markdown)
+              --output, -o <dir>       Output directory (default: docs)
+              --format, -f <formats>   Comma-separated formats (default: html,markdown,kite)
                                        - html: Interactive HTML pages
                                        - markdown: Markdown files
                                        - combined-markdown: Single REFERENCE.md
