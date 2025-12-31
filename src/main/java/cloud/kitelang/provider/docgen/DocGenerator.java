@@ -1,7 +1,5 @@
 package cloud.kitelang.provider.docgen;
 
-import cloud.kitelang.api.resource.Property;
-import cloud.kitelang.api.schema.Schema;
 import cloud.kitelang.provider.KiteProvider;
 import cloud.kitelang.provider.ResourceTypeHandler;
 import lombok.Builder;
@@ -79,6 +77,8 @@ public class DocGenerator {
                     .importable(prop.importable())
                     .deprecated(prop.deprecationMessage() != null && !prop.deprecationMessage().isEmpty())
                     .deprecationMessage(prop.deprecationMessage())
+                    .defaultValue(prop.defaultValue())
+                    .validValues(prop.validValues())
                     .build());
         }
 
@@ -251,10 +251,21 @@ public class DocGenerator {
             sb.append(" ".repeat(Math.max(1, 10 - prop.getType().length())));
             sb.append(prop.getName());
 
-            // Add description as comment if present
+            // Build comment with description, default, and valid values
+            var comments = new ArrayList<String>();
             if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
+                comments.add(prop.getDescription());
+            }
+            if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
+                comments.add("default: " + prop.getDefaultValue());
+            }
+            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
+                comments.add("valid: " + String.join(", ", prop.getValidValues()));
+            }
+
+            if (!comments.isEmpty()) {
                 sb.append(" ".repeat(Math.max(1, maxLen - prop.getName().length() + 2)));
-                sb.append("// ").append(prop.getDescription());
+                sb.append("// ").append(String.join(" | ", comments));
             }
             sb.append("\n");
         }
@@ -641,6 +652,30 @@ public class DocGenerator {
                     font-weight: 500;
                     color: var(--kite-primary);
                 }
+                .default-value {
+                    font-family: 'SF Mono', monospace;
+                    font-size: 0.875rem;
+                    background: rgba(34, 197, 94, 0.1);
+                    color: var(--kite-success);
+                    padding: 0.125rem 0.375rem;
+                    border-radius: 0.25rem;
+                }
+                .valid-values {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.25rem;
+                }
+                .valid-value {
+                    font-family: 'SF Mono', monospace;
+                    font-size: 0.75rem;
+                    background: rgba(14, 165, 233, 0.1);
+                    color: var(--kite-primary);
+                    padding: 0.125rem 0.375rem;
+                    border-radius: 0.25rem;
+                }
+                .no-value {
+                    color: var(--text-secondary);
+                }
                 .prop-type {
                     font-family: 'SF Mono', monospace;
                     font-size: 0.875rem;
@@ -1007,6 +1042,8 @@ public class DocGenerator {
                     <tr>
                         <th data-sort="name" class="sortable-header">Name <span class="sort-icon">↕</span></th>
                         <th data-sort="type" class="sortable-header">Type <span class="sort-icon">↕</span></th>
+                        <th>Default</th>
+                        <th>Valid Values</th>
                         <th data-sort="optional" class="sortable-header">Optional <span class="sort-icon">↕</span></th>
                         <th>Description</th>
                     </tr>
@@ -1041,6 +1078,29 @@ public class DocGenerator {
 
             sb.append("</td>\n");
             sb.append("  <td><span class=\"prop-type\">").append(prop.getType()).append("</span></td>\n");
+
+            // Default value column
+            sb.append("  <td>");
+            if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
+                sb.append("<code class=\"default-value\">").append(escapeHtml(prop.getDefaultValue())).append("</code>");
+            } else {
+                sb.append("<span class=\"no-value\">—</span>");
+            }
+            sb.append("</td>\n");
+
+            // Valid values column
+            sb.append("  <td>");
+            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
+                sb.append("<div class=\"valid-values\">");
+                for (var value : prop.getValidValues()) {
+                    sb.append("<code class=\"valid-value\">").append(escapeHtml(value)).append("</code> ");
+                }
+                sb.append("</div>");
+            } else {
+                sb.append("<span class=\"no-value\">—</span>");
+            }
+            sb.append("</td>\n");
+
             sb.append("  <td class=\"optional-cell\">");
             if (prop.isRequired()) {
                 sb.append("<span class=\"badge badge-required\">No</span>");
@@ -1160,8 +1220,8 @@ public class DocGenerator {
      */
     private String generateMarkdownPropertiesTable(List<PropertyInfo> properties) {
         var sb = new StringBuilder();
-        sb.append("| Name | Type | Required | Description |\n");
-        sb.append("|------|------|----------|-------------|\n");
+        sb.append("| Name | Type | Default | Valid Values | Required | Description |\n");
+        sb.append("|------|------|---------|--------------|----------|-------------|\n");
 
         for (var prop : properties) {
             var badges = new ArrayList<String>();
@@ -1174,7 +1234,18 @@ public class DocGenerator {
                 desc = "*" + String.join(", ", badges) + "* " + desc;
             }
 
+            // Default value
+            var defaultVal = prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()
+                    ? "`" + prop.getDefaultValue() + "`"
+                    : "—";
+
+            // Valid values
+            var validVals = prop.getValidValues() != null && !prop.getValidValues().isEmpty()
+                    ? prop.getValidValues().stream().map(v -> "`" + v + "`").collect(Collectors.joining(", "))
+                    : "—";
+
             sb.append("| `").append(prop.getName()).append("` | `").append(prop.getType()).append("` | ")
+              .append(defaultVal).append(" | ").append(validVals).append(" | ")
               .append(prop.isRequired() ? "Yes" : "No").append(" | ")
               .append(desc.replace("|", "\\|")).append(" |\n");
         }
@@ -1255,5 +1326,7 @@ public class DocGenerator {
         private boolean importable;
         private boolean deprecated;
         private String deprecationMessage;
+        private String defaultValue;
+        private List<String> validValues;
     }
 }
