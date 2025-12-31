@@ -111,7 +111,11 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         for (var prop : resource.getProperties()) {
             // Cloud decorator for cloud-managed properties
             if (prop.isCloudManaged()) {
-                sb.append("    @cloud\n");
+                if (prop.isImportable()) {
+                    sb.append("    @cloud(importable)\n");
+                } else {
+                    sb.append("    @cloud\n");
+                }
             }
 
             // Type and name with alignment
