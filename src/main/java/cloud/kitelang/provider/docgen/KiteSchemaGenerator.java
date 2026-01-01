@@ -136,10 +136,9 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
                 }
             }
 
-            // Type and name with alignment
+            // Type and name
             sb.append("    ").append(prop.getType());
-            sb.append(" ".repeat(Math.max(1, 10 - prop.getType().length())));
-            sb.append(prop.getName());
+            sb.append(" ").append(prop.getName());
 
             // Default value assignment
             String nameWithDefault = prop.getName();
@@ -163,8 +162,9 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
 
     /**
      * Formats a default value based on the property type.
+     * Strings are quoted, booleans and numbers are literal.
      */
-    private static String formatDefaultValue(String value, String type) {
+    public static String formatDefaultValue(String value, String type) {
         if (value == null || value.isEmpty()) {
             return value;
         }

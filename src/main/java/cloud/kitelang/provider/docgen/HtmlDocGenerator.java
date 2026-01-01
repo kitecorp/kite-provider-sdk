@@ -217,6 +217,21 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         sb.append("</code></div>\n");
         sb.append("</div>\n");
 
+        // Collapsible schema section
+        sb.append("<div class=\"schema-section collapsed\">\n");
+        sb.append("<div class=\"schema-header\" onclick=\"toggleSchema(this)\">\n");
+        sb.append("<span class=\"schema-toggle\">▶</span> Schema\n");
+        sb.append("</div>\n");
+        sb.append("<div class=\"schema-content\">\n");
+        sb.append("<div class=\"code-wrapper\">\n");
+        sb.append("<button class=\"copy-btn\" onclick=\"copyCode(this)\">Copy</button>\n");
+        sb.append("<div class=\"code-block\"><code>");
+        sb.append(generateHighlightedSchema(resource));
+        sb.append("</code></div>\n");
+        sb.append("</div>\n");
+        sb.append("</div>\n");
+        sb.append("</div>\n");
+
         // Properties tables
         var userProps = resource.getProperties().stream()
                 .filter(p -> !p.isCloudManaged())
@@ -270,6 +285,11 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         });
                     }
 
+                    function toggleSchema(header) {
+                        const section = header.parentElement;
+                        section.classList.toggle('collapsed');
+                    }
+
                     document.querySelectorAll('.sortable-header').forEach(header => {
                         header.addEventListener('click', () => {
                             const table = header.closest('table');
@@ -319,8 +339,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .orElse(0);
 
         sb.append("<span class=\"kw\">resource</span> ");
-        sb.append("<span class=\"type type-tooltip\" data-schema=\"").append(escapeHtml(KiteSchemaGenerator.formatSchema(resource))).append("\">");
-        sb.append(resource.getName()).append("</span> ");
+        sb.append("<span class=\"type\">").append(resource.getName()).append("</span> ");
         sb.append("<span class=\"name\">example</span> ");
         sb.append("<span class=\"brace\">{</span>\n");
 
@@ -329,6 +348,77 @@ public class HtmlDocGenerator extends DocGeneratorBase {
             sb.append(" ".repeat(maxLen - prop.getName().length()));
             sb.append(" <span class=\"eq\">=</span> ");
             sb.append(getHighlightedExampleValue(prop));
+            sb.append("\n");
+        }
+
+        sb.append("<span class=\"brace\">}</span>");
+        return sb.toString();
+    }
+
+    private String generateHighlightedSchema(ResourceInfo resource) {
+        var sb = new StringBuilder();
+
+        // Header comment
+        sb.append("<span class=\"comment\">// ").append(resource.getName()).append("</span>\n");
+
+        // Calculate max property name length for alignment
+        int maxLen = resource.getProperties().stream()
+                .mapToInt(p -> {
+                    int len = p.getName().length();
+                    if (p.getDefaultValue() != null && !p.getDefaultValue().isEmpty()) {
+                        len += 3 + KiteSchemaGenerator.formatDefaultValue(p.getDefaultValue(), p.getType()).length();
+                    }
+                    return len;
+                })
+                .max()
+                .orElse(0);
+
+        sb.append("<span class=\"kw\">schema</span> <span class=\"type\">").append(resource.getName()).append("</span> <span class=\"brace\">{</span>\n");
+
+        for (var prop : resource.getProperties()) {
+            // @allowed decorator for valid values
+            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
+                sb.append("    <span class=\"decorator\">@allowed</span><span class=\"brace\">([</span>");
+                sb.append(prop.getValidValues().stream()
+                        .map(v -> "<span class=\"str\">\"" + escapeHtml(v) + "\"</span>")
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse(""));
+                sb.append("<span class=\"brace\">])</span>\n");
+            }
+
+            // Cloud decorator for cloud-managed properties
+            if (prop.isCloudManaged()) {
+                if (prop.isImportable()) {
+                    sb.append("    <span class=\"decorator\">@cloud</span><span class=\"brace\">(</span><span class=\"name\">importable</span><span class=\"brace\">)</span>\n");
+                } else {
+                    sb.append("    <span class=\"decorator\">@cloud</span>\n");
+                }
+            }
+
+            // Type and name
+            sb.append("    <span class=\"type\">").append(prop.getType()).append("</span> ");
+            sb.append("<span class=\"prop\">").append(prop.getName()).append("</span>");
+
+            // Default value assignment
+            String nameWithDefault = prop.getName();
+            if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
+                var formattedDefault = KiteSchemaGenerator.formatDefaultValue(prop.getDefaultValue(), prop.getType());
+                sb.append(" <span class=\"eq\">=</span> ");
+                if (formattedDefault.startsWith("\"")) {
+                    sb.append("<span class=\"str\">").append(escapeHtml(formattedDefault)).append("</span>");
+                } else if ("true".equals(formattedDefault) || "false".equals(formattedDefault)) {
+                    sb.append("<span class=\"bool\">").append(formattedDefault).append("</span>");
+                } else {
+                    sb.append("<span class=\"num\">").append(formattedDefault).append("</span>");
+                }
+                nameWithDefault = prop.getName() + " = " + formattedDefault;
+            }
+
+            // Comment with description
+            if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
+                sb.append(" ".repeat(Math.max(1, maxLen - nameWithDefault.length() + 2)));
+                sb.append("<span class=\"comment\">// ").append(escapeHtml(prop.getDescription())).append("</span>");
+            }
             sb.append("\n");
         }
 
@@ -602,41 +692,32 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .bool { color: #fb923c; }
                 .brace { color: #94a3b8; }
                 .comment { color: #64748b; font-style: italic; }
+                .decorator { color: #fb923c; }
 
-                .type-tooltip {
-                    position: relative;
-                    cursor: help;
-                    border-bottom: 1px dashed #38bdf8;
+                .schema-section {
+                    margin-top: 1rem;
+                    margin-bottom: 1.5rem;
                 }
-                .type-tooltip::after {
-                    content: attr(data-schema);
-                    position: absolute;
-                    left: 0;
-                    top: 100%%;
-                    margin-top: 0.5rem;
-                    padding: 1rem;
-                    background: #0f172a;
-                    border: 1px solid #334155;
-                    border-radius: 0.5rem;
-                    font-family: 'SF Mono', 'Fira Code', monospace;
+                .schema-header {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.5rem 0;
+                    cursor: pointer;
+                    user-select: none;
+                    color: var(--text-secondary);
+                    font-size: 0.875rem;
+                    font-weight: 500;
+                    transition: color 0.15s;
+                }
+                .schema-header:hover { color: var(--kite-primary); }
+                .schema-toggle {
                     font-size: 0.75rem;
-                    line-height: 1.5;
-                    white-space: pre;
-                    color: #e2e8f0;
-                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
-                    z-index: 1000;
-                    opacity: 0;
-                    visibility: hidden;
-                    transition: opacity 0.2s, visibility 0.2s;
-                    min-width: 400px;
-                    max-width: 600px;
-                    max-height: 400px;
-                    overflow: auto;
+                    transition: transform 0.2s;
                 }
-                .type-tooltip:hover::after {
-                    opacity: 1;
-                    visibility: visible;
-                }
+                .schema-section:not(.collapsed) .schema-toggle { transform: rotate(90deg); }
+                .schema-section.collapsed .schema-content { display: none; }
+                .schema-content { margin-top: 0.5rem; }
 
                 table { width: 100%%; border-collapse: collapse; margin-top: 1rem; }
                 th, td { text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
@@ -701,26 +782,27 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
                 .meta p { margin: 0.25rem 0; }
 
-                .domain-group { margin-bottom: 1.5rem; }
+                .domain-group { margin-bottom: 2rem; }
                 .domain-header {
                     display: flex;
                     align-items: center;
                     gap: 0.5rem;
-                    padding: 0.75rem 1rem;
-                    background: var(--bg-secondary);
-                    border: 1px solid var(--border);
-                    border-radius: 0.5rem;
-                    margin-bottom: 0.5rem;
+                    padding: 0.5rem 0;
+                    border-bottom: 2px solid var(--border);
+                    margin-bottom: 0.75rem;
                     cursor: pointer;
                     user-select: none;
-                    font-size: 1rem;
-                    transition: border-color 0.15s;
+                    font-size: 1.125rem;
+                    font-weight: 600;
+                    color: var(--text-primary);
+                    transition: color 0.15s;
                 }
-                .domain-header:hover { border-color: var(--kite-primary); }
+                .domain-header:hover { color: var(--kite-primary); }
                 .domain-icon { font-size: 1.25rem; }
-                .collapse-icon { margin-left: auto; transition: transform 0.2s; color: var(--text-secondary); }
+                .collapse-icon { margin-left: auto; transition: transform 0.2s; color: var(--text-secondary); font-size: 0.875rem; }
                 .domain-group.collapsed .collapse-icon { transform: rotate(-90deg); }
                 .domain-group.collapsed .resource-list { display: none; }
+                .resource-list { padding-left: 0.5rem; }
 
                 .breadcrumbs {
                     display: flex;
