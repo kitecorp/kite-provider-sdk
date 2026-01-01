@@ -362,20 +362,35 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
     private String generatePropertiesTable(List<PropertyInfo> properties, boolean isCloudSection) {
         var sb = new StringBuilder();
-        sb.append("""
-            <table class="sortable">
-                <thead>
-                    <tr>
-                        <th data-sort="name" class="sortable-header">Name <span class="sort-icon">↕</span></th>
-                        <th data-sort="type" class="sortable-header">Type <span class="sort-icon">↕</span></th>
-                        <th>Default</th>
-                        <th>Valid Values</th>
-                        <th data-sort="optional" class="sortable-header">Optional <span class="sort-icon">↕</span></th>
-                        <th>Description</th>
-                    </tr>
-                </thead>
-                <tbody>
-            """);
+        // Cloud properties don't have defaults - they're set by the provider
+        if (isCloudSection) {
+            sb.append("""
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th data-sort="name" class="sortable-header">Name <span class="sort-icon">↕</span></th>
+                            <th data-sort="type" class="sortable-header">Type <span class="sort-icon">↕</span></th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """);
+        } else {
+            sb.append("""
+                <table class="sortable">
+                    <thead>
+                        <tr>
+                            <th data-sort="name" class="sortable-header">Name <span class="sort-icon">↕</span></th>
+                            <th data-sort="type" class="sortable-header">Type <span class="sort-icon">↕</span></th>
+                            <th>Default</th>
+                            <th>Valid Values</th>
+                            <th data-sort="optional" class="sortable-header">Optional <span class="sort-icon">↕</span></th>
+                            <th>Description</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                """);
+        }
 
         for (var prop : properties) {
             sb.append("<tr id=\"").append(prop.getName()).append("\" data-name=\"").append(prop.getName().toLowerCase())
@@ -404,39 +419,46 @@ public class HtmlDocGenerator extends DocGeneratorBase {
             sb.append("</td>\n");
             sb.append("  <td><span class=\"prop-type\">").append(prop.getType()).append("</span></td>\n");
 
-            // Default value column
-            sb.append("  <td>");
-            if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
-                sb.append("<code class=\"default-value\">").append(escapeHtml(prop.getDefaultValue())).append("</code>");
-            } else {
-                sb.append("<span class=\"no-value\">—</span>");
-            }
-            sb.append("</td>\n");
-
-            // Valid values column
-            sb.append("  <td>");
-            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
-                sb.append("<div class=\"valid-values\">");
-                for (var value : prop.getValidValues()) {
-                    sb.append("<code class=\"valid-value\">").append(escapeHtml(value)).append("</code> ");
+            // Cloud properties only show Name, Type, Description
+            if (!isCloudSection) {
+                // Default value column
+                sb.append("  <td>");
+                if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
+                    sb.append("<code class=\"default-value\">").append(escapeHtml(prop.getDefaultValue())).append("</code>");
+                } else {
+                    sb.append("<span class=\"no-value\">—</span>");
                 }
-                sb.append("</div>");
-            } else {
-                sb.append("<span class=\"no-value\">—</span>");
-            }
-            sb.append("</td>\n");
+                sb.append("</td>\n");
 
-            sb.append("  <td class=\"optional-cell\">");
-            if (prop.isRequired()) {
-                sb.append("<span class=\"badge badge-required\">No</span>");
-            } else {
-                sb.append("<span class=\"badge badge-optional\">Yes</span>");
+                // Valid values column
+                sb.append("  <td>");
+                if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
+                    sb.append("<div class=\"valid-values\">");
+                    for (var value : prop.getValidValues()) {
+                        sb.append("<code class=\"valid-value\">").append(escapeHtml(value)).append("</code> ");
+                    }
+                    sb.append("</div>");
+                } else {
+                    sb.append("<span class=\"no-value\">—</span>");
+                }
+                sb.append("</td>\n");
+
+                sb.append("  <td class=\"optional-cell\">");
+                if (prop.isRequired()) {
+                    sb.append("<span class=\"badge badge-required\">No</span>");
+                } else {
+                    sb.append("<span class=\"badge badge-optional\">Yes</span>");
+                }
+                sb.append("</td>\n");
             }
-            sb.append("</td>\n");
+
+            // Description column
             sb.append("  <td>");
-
             if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
                 sb.append(escapeHtml(prop.getDescription()));
+            }
+            if (prop.isImportable()) {
+                sb.append(" <span class=\"badge badge-importable\">importable</span>");
             }
             if (prop.isDeprecated() && prop.getDeprecationMessage() != null) {
                 sb.append("<br><em style=\"color: var(--kite-warning);\">Deprecated: ")

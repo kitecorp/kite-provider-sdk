@@ -120,13 +120,13 @@ public class MarkdownDocGenerator extends DocGeneratorBase {
 
         if (!userProps.isEmpty()) {
             sb.append("## Properties\n\n");
-            sb.append(generatePropertiesTable(userProps));
+            sb.append(generatePropertiesTable(userProps, false));
         }
 
         if (!cloudProps.isEmpty()) {
             sb.append("## Cloud Properties\n\n");
             sb.append("_These properties are set by the cloud provider after resource creation._\n\n");
-            sb.append(generatePropertiesTable(cloudProps));
+            sb.append(generatePropertiesTable(cloudProps, true));
         }
 
         sb.append("\n[← Back to Index](README.md)\n");
@@ -181,34 +181,49 @@ public class MarkdownDocGenerator extends DocGeneratorBase {
         };
     }
 
-    private String generatePropertiesTable(List<PropertyInfo> properties) {
+    private String generatePropertiesTable(List<PropertyInfo> properties, boolean isCloudSection) {
         var sb = new StringBuilder();
-        sb.append("| Name | Type | Default | Valid Values | Required | Description |\n");
-        sb.append("|------|------|---------|--------------|----------|-------------|\n");
 
-        for (var prop : properties) {
-            var badges = new ArrayList<String>();
-            if (prop.isCloudManaged()) badges.add("☁️ cloud-managed");
-            if (prop.isImportable()) badges.add("📥 importable");
-            if (prop.isDeprecated()) badges.add("⚠️ deprecated");
+        // Cloud properties only show Name, Type, Description
+        if (isCloudSection) {
+            sb.append("| Name | Type | Description |\n");
+            sb.append("|------|------|-------------|\n");
 
-            var desc = prop.getDescription() != null ? prop.getDescription() : "";
-            if (!badges.isEmpty()) {
-                desc = "*" + String.join(", ", badges) + "* " + desc;
+            for (var prop : properties) {
+                var desc = prop.getDescription() != null ? prop.getDescription() : "";
+                if (prop.isImportable()) {
+                    desc = "*📥 importable* " + desc;
+                }
+
+                sb.append("| `").append(prop.getName()).append("` | `").append(prop.getType()).append("` | ")
+                  .append(desc.replace("|", "\\|")).append(" |\n");
             }
+        } else {
+            sb.append("| Name | Type | Default | Valid Values | Required | Description |\n");
+            sb.append("|------|------|---------|--------------|----------|-------------|\n");
 
-            var defaultVal = prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()
-                    ? "`" + prop.getDefaultValue() + "`"
-                    : "—";
+            for (var prop : properties) {
+                var badges = new ArrayList<String>();
+                if (prop.isDeprecated()) badges.add("⚠️ deprecated");
 
-            var validVals = prop.getValidValues() != null && !prop.getValidValues().isEmpty()
-                    ? prop.getValidValues().stream().map(v -> "`" + v + "`").collect(Collectors.joining(", "))
-                    : "—";
+                var desc = prop.getDescription() != null ? prop.getDescription() : "";
+                if (!badges.isEmpty()) {
+                    desc = "*" + String.join(", ", badges) + "* " + desc;
+                }
 
-            sb.append("| `").append(prop.getName()).append("` | `").append(prop.getType()).append("` | ")
-              .append(defaultVal).append(" | ").append(validVals).append(" | ")
-              .append(prop.isRequired() ? "Yes" : "No").append(" | ")
-              .append(desc.replace("|", "\\|")).append(" |\n");
+                var defaultVal = prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()
+                        ? "`" + prop.getDefaultValue() + "`"
+                        : "—";
+
+                var validVals = prop.getValidValues() != null && !prop.getValidValues().isEmpty()
+                        ? prop.getValidValues().stream().map(v -> "`" + v + "`").collect(Collectors.joining(", "))
+                        : "—";
+
+                sb.append("| `").append(prop.getName()).append("` | `").append(prop.getType()).append("` | ")
+                  .append(defaultVal).append(" | ").append(validVals).append(" | ")
+                  .append(prop.isRequired() ? "Yes" : "No").append(" | ")
+                  .append(desc.replace("|", "\\|")).append(" |\n");
+            }
         }
         return sb.toString();
     }
