@@ -100,15 +100,30 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         }
         sb.append("\n");
 
-        // Calculate max property name length for alignment
+        // Calculate max property name length for alignment (including default value assignment)
         int maxLen = resource.getProperties().stream()
-                .mapToInt(p -> p.getName().length())
+                .mapToInt(p -> {
+                    int len = p.getName().length();
+                    if (p.getDefaultValue() != null && !p.getDefaultValue().isEmpty()) {
+                        len += 3 + formatDefaultValue(p.getDefaultValue(), p.getType()).length(); // " = value"
+                    }
+                    return len;
+                })
                 .max()
                 .orElse(0);
 
         sb.append("schema ").append(resource.getName()).append(" {\n");
 
         for (var prop : resource.getProperties()) {
+            // @allowed decorator for valid values
+            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
+                sb.append("    @allowed(");
+                sb.append(prop.getValidValues().stream()
+                        .map(v -> "\"" + v + "\"")
+                        .collect(Collectors.joining(", ")));
+                sb.append(")\n");
+            }
+
             // Cloud decorator for cloud-managed properties
             if (prop.isCloudManaged()) {
                 if (prop.isImportable()) {
@@ -123,26 +138,57 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
             sb.append(" ".repeat(Math.max(1, 10 - prop.getType().length())));
             sb.append(prop.getName());
 
-            // Build comment with description, default, and valid values
-            var comments = new ArrayList<String>();
-            if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
-                comments.add(prop.getDescription());
-            }
+            // Default value assignment
+            String nameWithDefault = prop.getName();
             if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
-                comments.add("default: " + prop.getDefaultValue());
-            }
-            if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
-                comments.add("valid: " + String.join(", ", prop.getValidValues()));
+                var formattedDefault = formatDefaultValue(prop.getDefaultValue(), prop.getType());
+                sb.append(" = ").append(formattedDefault);
+                nameWithDefault = prop.getName() + " = " + formattedDefault;
             }
 
-            if (!comments.isEmpty()) {
-                sb.append(" ".repeat(Math.max(1, maxLen - prop.getName().length() + 2)));
-                sb.append("// ").append(String.join(" | ", comments));
+            // Comment with description only (default and valid values now use decorators)
+            if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
+                sb.append(" ".repeat(Math.max(1, maxLen - nameWithDefault.length() + 2)));
+                sb.append("// ").append(prop.getDescription());
             }
             sb.append("\n");
         }
 
         sb.append("}\n");
         return sb.toString();
+    }
+
+    /**
+     * Formats a default value based on the property type.
+     * Strings are quoted, booleans and numbers are literal.
+     */
+    private String formatDefaultValue(String value, String type) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+
+        // Boolean values - no quotes
+        if ("boolean".equalsIgnoreCase(type) ||
+            "true".equalsIgnoreCase(value) ||
+            "false".equalsIgnoreCase(value)) {
+            return value.toLowerCase();
+        }
+
+        // Numeric values - no quotes
+        if ("number".equalsIgnoreCase(type) || "integer".equalsIgnoreCase(type) ||
+            "int".equalsIgnoreCase(type) || "long".equalsIgnoreCase(type)) {
+            return value;
+        }
+
+        // Try to detect if it's a number
+        try {
+            Double.parseDouble(value);
+            return value;
+        } catch (NumberFormatException ignored) {
+            // Not a number, quote it as a string
+        }
+
+        // String values - add quotes
+        return "\"" + value + "\"";
     }
 }
