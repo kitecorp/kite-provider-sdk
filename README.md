@@ -352,6 +352,50 @@ String result = ProviderUtils.coalesce(a, b, c);
 | `@Property` | Marks a field as a resource property |
 | `@Cloud` | Cloud-managed property (read-only, set by provider) |
 
+### @Property Attributes
+
+The `@Property` annotation supports several attributes for documentation and validation:
+
+```java
+@Property(
+    name = "custom_name",           // Override field name in schema
+    description = "Field docs",     // Documentation text
+    optional = true,                // Whether field is required (default: true)
+    validValues = {"a", "b", "c"},  // Allowed values (generates @allowed decorator)
+    hidden = false,                 // Hide from schema output
+    deprecationMessage = "Use X"    // Mark as deprecated
+)
+private String field;
+```
+
+### @Property validValues → @allowed
+
+The `validValues` attribute defines allowed values for a property. When documentation is generated, this produces the `@allowed` decorator in Kite schemas:
+
+**Java source:**
+```java
+@Property(description = "The volume type",
+          validValues = {"gp2", "gp3", "io1", "io2", "st1", "sc1"})
+private String volumeType = "gp3";
+```
+
+**Generated Kite schema:**
+```kite
+@allowed(["gp2", "gp3", "io1", "io2", "st1", "sc1"])
+string volumeType = "gp3"  // The volume type
+```
+
+**Generated HTML/Markdown docs:**
+
+The `validValues` also populate the "Valid Values" column in the generated HTML and Markdown documentation tables.
+
+### @Cloud Attributes
+
+```java
+@Cloud                      // Cloud-managed, not importable
+@Cloud(importable = true)   // Can be used to import existing resources
+```
+
 ## Handshake Protocol
 
 The SDK implements a handshake protocol for secure provider launching:

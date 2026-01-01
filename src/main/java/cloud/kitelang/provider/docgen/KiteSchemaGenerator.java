@@ -115,13 +115,13 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         sb.append("schema ").append(resource.getName()).append(" {\n");
 
         for (var prop : resource.getProperties()) {
-            // @allowed decorator for valid values
+            // @allowed decorator for valid values (using array syntax)
             if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
-                sb.append("    @allowed(");
+                sb.append("    @allowed([");
                 sb.append(prop.getValidValues().stream()
                         .map(v -> "\"" + v + "\"")
                         .collect(Collectors.joining(", ")));
-                sb.append(")\n");
+                sb.append("])\n");
             }
 
             // Cloud decorator for cloud-managed properties
