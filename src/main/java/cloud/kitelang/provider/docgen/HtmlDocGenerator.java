@@ -319,7 +319,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .orElse(0);
 
         sb.append("<span class=\"kw\">resource</span> ");
-        sb.append("<span class=\"type\">").append(resource.getName()).append("</span> ");
+        sb.append("<span class=\"type type-tooltip\" data-schema=\"").append(escapeHtml(KiteSchemaGenerator.formatSchema(resource))).append("\">");
+        sb.append(resource.getName()).append("</span> ");
         sb.append("<span class=\"name\">example</span> ");
         sb.append("<span class=\"brace\">{</span>\n");
 
@@ -601,6 +602,41 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .bool { color: #fb923c; }
                 .brace { color: #94a3b8; }
                 .comment { color: #64748b; font-style: italic; }
+
+                .type-tooltip {
+                    position: relative;
+                    cursor: help;
+                    border-bottom: 1px dashed #38bdf8;
+                }
+                .type-tooltip::after {
+                    content: attr(data-schema);
+                    position: absolute;
+                    left: 0;
+                    top: 100%%;
+                    margin-top: 0.5rem;
+                    padding: 1rem;
+                    background: #0f172a;
+                    border: 1px solid #334155;
+                    border-radius: 0.5rem;
+                    font-family: 'SF Mono', 'Fira Code', monospace;
+                    font-size: 0.75rem;
+                    line-height: 1.5;
+                    white-space: pre;
+                    color: #e2e8f0;
+                    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+                    z-index: 1000;
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: opacity 0.2s, visibility 0.2s;
+                    min-width: 400px;
+                    max-width: 600px;
+                    max-height: 400px;
+                    overflow: auto;
+                }
+                .type-tooltip:hover::after {
+                    opacity: 1;
+                    visibility: visible;
+                }
 
                 table { width: 100%%; border-collapse: collapse; margin-top: 1rem; }
                 th, td { text-align: left; padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }

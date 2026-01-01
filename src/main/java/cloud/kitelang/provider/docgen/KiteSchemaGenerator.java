@@ -6,7 +6,6 @@ import cloud.kitelang.provider.ResourceTypeHandler;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.stream.Collectors;
 
@@ -53,7 +52,7 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
             Files.createDirectories(domainDir);
 
             for (var resource : domainResources) {
-                var kiteSchema = generateSchema(resource);
+                var kiteSchema = formatSchema(resource) + "\n";
                 Files.writeString(domainDir.resolve(resource.getName() + ".kite"), kiteSchema);
             }
         }
@@ -82,30 +81,33 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
             sb.append("// ").append("=".repeat(60)).append("\n\n");
 
             for (var resource : domainResources) {
-                sb.append(generateSchema(resource));
-                sb.append("\n");
+                sb.append(formatSchema(resource));
+                sb.append("\n\n");
             }
         }
 
         Files.writeString(outputFile, sb.toString());
     }
 
-    private String generateSchema(ResourceInfo resource) {
+    /**
+     * Formats a resource as a Kite schema string.
+     * This format matches the docs/schemas/*.kite files.
+     *
+     * @param resource the resource to format
+     * @return the formatted schema string
+     */
+    public static String formatSchema(ResourceInfo resource) {
         var sb = new StringBuilder();
 
-        // Header comment with description
-        sb.append("// ").append(resource.getName());
-        if (resource.getDescription() != null && !resource.getDescription().isEmpty()) {
-            sb.append(" - ").append(resource.getDescription());
-        }
-        sb.append("\n");
+        // Header comment
+        sb.append("// ").append(resource.getName()).append("\n");
 
-        // Calculate max property name length for alignment (including default value assignment)
+        // Calculate max property name length for alignment
         int maxLen = resource.getProperties().stream()
                 .mapToInt(p -> {
                     int len = p.getName().length();
                     if (p.getDefaultValue() != null && !p.getDefaultValue().isEmpty()) {
-                        len += 3 + formatDefaultValue(p.getDefaultValue(), p.getType()).length(); // " = value"
+                        len += 3 + formatDefaultValue(p.getDefaultValue(), p.getType()).length();
                     }
                     return len;
                 })
@@ -115,12 +117,13 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         sb.append("schema ").append(resource.getName()).append(" {\n");
 
         for (var prop : resource.getProperties()) {
-            // @allowed decorator for valid values (using array syntax)
+            // @allowed decorator for valid values
             if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
                 sb.append("    @allowed([");
                 sb.append(prop.getValidValues().stream()
                         .map(v -> "\"" + v + "\"")
-                        .collect(Collectors.joining(", ")));
+                        .reduce((a, b) -> a + ", " + b)
+                        .orElse(""));
                 sb.append("])\n");
             }
 
@@ -146,7 +149,7 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
                 nameWithDefault = prop.getName() + " = " + formattedDefault;
             }
 
-            // Comment with description only (default and valid values now use decorators)
+            // Comment with description
             if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
                 sb.append(" ".repeat(Math.max(1, maxLen - nameWithDefault.length() + 2)));
                 sb.append("// ").append(prop.getDescription());
@@ -154,15 +157,14 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
             sb.append("\n");
         }
 
-        sb.append("}\n");
+        sb.append("}");
         return sb.toString();
     }
 
     /**
      * Formats a default value based on the property type.
-     * Strings are quoted, booleans and numbers are literal.
      */
-    private String formatDefaultValue(String value, String type) {
+    private static String formatDefaultValue(String value, String type) {
         if (value == null || value.isEmpty()) {
             return value;
         }
@@ -175,8 +177,7 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         }
 
         // Numeric values - no quotes
-        if ("number".equalsIgnoreCase(type) || "integer".equalsIgnoreCase(type) ||
-            "int".equalsIgnoreCase(type) || "long".equalsIgnoreCase(type)) {
+        if ("number".equalsIgnoreCase(type) || "integer".equalsIgnoreCase(type)) {
             return value;
         }
 
