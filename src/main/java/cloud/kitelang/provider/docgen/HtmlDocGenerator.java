@@ -1331,8 +1331,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 @media (max-width: 768px) {
                     .sidebar-left {
                         position: fixed;
-                        left: -100%%;
-                        width: 100%%;
+                        left: -100%;
+                        width: 100%;
                         max-width: 300px;
                         z-index: 100;
                         transition: left 0.3s;
