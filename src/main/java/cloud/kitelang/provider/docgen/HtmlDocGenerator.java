@@ -275,6 +275,11 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         sb.append("</header>\n");
 
         // Import section
+        var importPath = "%s/%s/%s.kite".formatted(
+                providerInfo.getName().toLowerCase(),
+                domain.toLowerCase(),
+                resource.getName()
+        );
         sb.append("""
                             <section id="import">
                                 <h2>Import</h2>
@@ -283,7 +288,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                     <pre class="code-block"><code><span class="kw">import</span> <span class="type">%s</span> <span class="kw">from</span> <span class="str">"%s"</span></code></pre>
                                 </div>
                             </section>
-            """.formatted(resource.getName(), providerInfo.getName().toLowerCase()));
+            """.formatted(resource.getName(), importPath));
 
         // Example section
         sb.append("""
