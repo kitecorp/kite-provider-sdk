@@ -88,6 +88,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         sb.append("""
             <body>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu">
+                    <span class="hamburger-icon"></span>
+                </button>
+                <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
                 <div class="layout">
             """);
 
@@ -112,13 +116,42 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                 </div>
                             </div>
 
+                            <h2 id="quick-start">Quick Start</h2>
+                            <div class="quick-start-section">
+                                <h3>Installation</h3>
+                                <p>Install the %s provider:</p>
+                                <div class="code-wrapper">
+                                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                    <pre class="code-block"><code><span class="kw">kite</span> <span class="name">providers</span> <span class="str">install</span> %s@%s</code></pre>
+                                </div>
+
+                                <h3>Import in your .kite file</h3>
+                                <div class="code-wrapper">
+                                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                    <pre class="code-block"><code><span class="kw">import</span> <span class="name">*</span> <span class="kw">from</span> <span class="str">"%s"</span></code></pre>
+                                </div>
+
+                                <h3>Define a resource</h3>
+                                <div class="code-wrapper">
+                                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                    <pre class="code-block"><code><span class="kw">resource</span> <span class="type">%s</span> <span class="name">my_resource</span> <span class="brace">{</span>
+    <span class="comment">// Configure properties here</span>
+<span class="brace">}</span></code></pre>
+                                </div>
+                            </div>
+
                             <h2 id="categories">Categories</h2>
                             <div class="category-grid">
             """.formatted(
                 capitalize(providerInfo.getName()),
                 capitalize(providerInfo.getName()),
                 resources.size(),
-                byDomain.size()
+                byDomain.size(),
+                capitalize(providerInfo.getName()),
+                providerInfo.getName().toLowerCase(),
+                providerInfo.getVersion(),
+                providerInfo.getName().toLowerCase(),
+                resources.isEmpty() ? "ResourceType" : resources.get(0).getName()
             ));
 
         for (var entry : byDomain.entrySet()) {
@@ -170,6 +203,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     <aside class="sidebar-right">
                         <div class="toc-header">On this page</div>
                         <nav class="toc">
+                            <a href="#quick-start">Quick Start</a>
                             <a href="#categories">Categories</a>
                             <a href="#all-resources">All Resources</a>
                         </nav>
@@ -202,6 +236,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         sb.append("""
             <body>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu">
+                    <span class="hamburger-icon"></span>
+                </button>
+                <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
                 <div class="layout">
             """);
 
@@ -356,7 +394,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                             <span class="version">v%s</span>
                         </div>
                         <div class="search-wrapper">
-                            <input type="search" id="search" placeholder="Search resources..." class="search-input" aria-label="Search resources">
+                            <div class="search-container">
+                                <input type="search" id="search" placeholder="Search resources..." class="search-input" aria-label="Search resources">
+                                <kbd class="search-hint">/</kbd>
+                            </div>
                         </div>
                         <nav class="nav-tree" aria-label="Resources navigation">
             """.formatted(capitalize(providerInfo.getName()), providerInfo.getVersion()));
@@ -387,13 +428,15 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
             for (var resource : domainResources) {
                 var isActive = resource.getName().equals(currentResource);
+                var desc = resource.getDescription() != null ? resource.getDescription().toLowerCase() : "";
                 sb.append("""
-                                    <li class="nav-item%s" data-name="%s">
+                                    <li class="nav-item%s" data-name="%s" data-desc="%s">
                                         <a href="%s.html"%s>%s</a>
                                     </li>
                     """.formatted(
                         isActive ? " active" : "",
                         resource.getName().toLowerCase(),
+                        escapeHtml(desc),
                         resource.getName(),
                         isActive ? " aria-current=\"page\"" : "",
                         resource.getName()
@@ -432,6 +475,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 <!-- Canonical URL -->
                 <link rel="canonical" href="%s">
+
+                <!-- Favicon -->
+                <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪁</text></svg>">
 
                 <!-- Stylesheet -->
                 <link rel="stylesheet" href="styles.css">
@@ -742,6 +788,16 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
     private String generateScripts() {
         return """
+            // Mobile menu toggle
+            function toggleMobileMenu() {
+                const sidebar = document.querySelector('.sidebar-left');
+                const overlay = document.querySelector('.mobile-overlay');
+                const btn = document.querySelector('.mobile-menu-btn');
+                sidebar.classList.toggle('open');
+                overlay.classList.toggle('open');
+                btn.classList.toggle('open');
+            }
+
             function toggleCategory(header) {
                 const category = header.parentElement;
                 const isCollapsed = category.classList.toggle('collapsed');
@@ -766,16 +822,26 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 });
             }
 
-            // Search functionality
+            // Fuzzy search with descriptions
             document.getElementById('search')?.addEventListener('input', function(e) {
-                const query = e.target.value.toLowerCase();
+                const query = e.target.value.toLowerCase().trim();
 
                 document.querySelectorAll('.nav-category').forEach(category => {
                     let hasVisible = false;
 
                     category.querySelectorAll('.nav-item').forEach(item => {
-                        const name = item.dataset.name;
-                        const visible = name.includes(query);
+                        const name = item.dataset.name || '';
+                        const desc = item.dataset.desc || '';
+                        // Fuzzy match: check if all characters appear in order
+                        const fuzzyMatch = (text, pattern) => {
+                            if (!pattern) return true;
+                            let pi = 0;
+                            for (let i = 0; i < text.length && pi < pattern.length; i++) {
+                                if (text[i] === pattern[pi]) pi++;
+                            }
+                            return pi === pattern.length;
+                        };
+                        const visible = fuzzyMatch(name, query) || desc.includes(query);
                         item.style.display = visible ? '' : 'none';
                         if (visible) hasVisible = true;
                     });
@@ -786,6 +852,63 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         category.classList.remove('collapsed');
                     }
                 });
+            });
+
+            // Keyboard shortcuts
+            document.addEventListener('keydown', function(e) {
+                const searchInput = document.getElementById('search');
+                const sidebar = document.querySelector('.sidebar-left');
+
+                // "/" to focus search (when not in input)
+                if (e.key === '/' && document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    searchInput?.focus();
+                    searchInput?.select();
+                }
+
+                // Escape to close mobile menu or blur search
+                if (e.key === 'Escape') {
+                    if (sidebar?.classList.contains('open')) {
+                        toggleMobileMenu();
+                    } else if (document.activeElement === searchInput) {
+                        searchInput.blur();
+                        searchInput.value = '';
+                        searchInput.dispatchEvent(new Event('input'));
+                    }
+                }
+
+                // Arrow key navigation in search results
+                if (searchInput && document.activeElement === searchInput) {
+                    const visibleItems = Array.from(document.querySelectorAll('.nav-item'))
+                        .filter(item => item.style.display !== 'none');
+
+                    if (e.key === 'ArrowDown' && visibleItems.length > 0) {
+                        e.preventDefault();
+                        visibleItems[0].querySelector('a')?.focus();
+                    }
+                }
+
+                // Navigate between visible items with arrow keys
+                if (document.activeElement.closest('.nav-item')) {
+                    const visibleItems = Array.from(document.querySelectorAll('.nav-item'))
+                        .filter(item => item.style.display !== 'none');
+                    const currentItem = document.activeElement.closest('.nav-item');
+                    const currentIndex = visibleItems.indexOf(currentItem);
+
+                    if (e.key === 'ArrowDown' && currentIndex < visibleItems.length - 1) {
+                        e.preventDefault();
+                        visibleItems[currentIndex + 1].querySelector('a')?.focus();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (currentIndex > 0) {
+                            visibleItems[currentIndex - 1].querySelector('a')?.focus();
+                        } else {
+                            searchInput?.focus();
+                        }
+                    } else if (e.key === 'Enter') {
+                        // Already handled by link click
+                    }
+                }
             });
 
             // Highlight current TOC item on scroll
@@ -808,6 +931,18 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
             document.querySelectorAll('section[id], h2[id]').forEach(section => {
                 observer.observe(section);
+            });
+
+            // Smooth scroll for anchor links
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    const target = document.querySelector(this.getAttribute('href'));
+                    if (target) {
+                        e.preventDefault();
+                        target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                        history.pushState(null, '', this.getAttribute('href'));
+                    }
+                });
             });
             """;
     }
@@ -860,11 +995,75 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+                html { scroll-behavior: smooth; }
+
                 body {
                     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
                     background: var(--bg-body);
                     color: var(--text-primary);
                     line-height: 1.6;
+                }
+
+                /* Mobile menu button */
+                .mobile-menu-btn {
+                    display: none;
+                    position: fixed;
+                    top: 1rem;
+                    left: 1rem;
+                    z-index: 200;
+                    width: 44px;
+                    height: 44px;
+                    border: none;
+                    background: var(--bg-sidebar);
+                    border-radius: 0.5rem;
+                    box-shadow: var(--shadow-md);
+                    cursor: pointer;
+                    align-items: center;
+                    justify-content: center;
+                }
+
+                .hamburger-icon {
+                    display: block;
+                    width: 20px;
+                    height: 2px;
+                    background: var(--text-primary);
+                    position: relative;
+                    transition: background 0.2s;
+                }
+
+                .hamburger-icon::before,
+                .hamburger-icon::after {
+                    content: '';
+                    position: absolute;
+                    width: 20px;
+                    height: 2px;
+                    background: var(--text-primary);
+                    left: 0;
+                    transition: transform 0.2s;
+                }
+
+                .hamburger-icon::before { top: -6px; }
+                .hamburger-icon::after { top: 6px; }
+
+                .mobile-menu-btn.open .hamburger-icon { background: transparent; }
+                .mobile-menu-btn.open .hamburger-icon::before { transform: rotate(45deg) translate(4px, 4px); }
+                .mobile-menu-btn.open .hamburger-icon::after { transform: rotate(-45deg) translate(4px, -4px); }
+
+                .mobile-overlay {
+                    display: none;
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background: rgba(0, 0, 0, 0.5);
+                    z-index: 90;
+                    opacity: 0;
+                    transition: opacity 0.3s;
+                }
+
+                .mobile-overlay.open {
+                    opacity: 1;
                 }
 
                 .layout {
@@ -912,9 +1111,15 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     border-bottom: 1px solid var(--border-color);
                 }
 
+                .search-container {
+                    position: relative;
+                    display: flex;
+                    align-items: center;
+                }
+
                 .search-input {
                     width: 100%;
-                    padding: 0.5rem 0.75rem;
+                    padding: 0.5rem 2.5rem 0.5rem 0.75rem;
                     border: 1px solid var(--border-color);
                     border-radius: 0.375rem;
                     font-size: 0.875rem;
@@ -926,6 +1131,24 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     outline: none;
                     border-color: var(--kite-primary);
                     box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.1);
+                }
+
+                .search-input:focus + .search-hint {
+                    opacity: 0;
+                }
+
+                .search-hint {
+                    position: absolute;
+                    right: 0.5rem;
+                    padding: 0.125rem 0.375rem;
+                    background: var(--bg-hover);
+                    border: 1px solid var(--border-color);
+                    border-radius: 0.25rem;
+                    font-size: 0.75rem;
+                    font-family: monospace;
+                    color: var(--text-muted);
+                    pointer-events: none;
+                    transition: opacity 0.15s;
                 }
 
                 .nav-tree {
@@ -1038,6 +1261,34 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 .welcome-text { font-size: 1.125rem; }
+
+                /* Quick start section */
+                .quick-start-section {
+                    background: var(--bg-hover);
+                    border-radius: 0.5rem;
+                    padding: 1.5rem;
+                    margin-bottom: 2rem;
+                }
+
+                .quick-start-section h3 {
+                    font-size: 1rem;
+                    margin: 1.5rem 0 0.75rem;
+                    color: var(--text-primary);
+                }
+
+                .quick-start-section h3:first-child {
+                    margin-top: 0;
+                }
+
+                .quick-start-section p {
+                    color: var(--text-secondary);
+                    margin-bottom: 0.5rem;
+                    font-size: 0.875rem;
+                }
+
+                .quick-start-section .code-wrapper {
+                    margin: 0.5rem 0 0 0;
+                }
 
                 .quick-stats {
                     display: flex;
@@ -1329,6 +1580,14 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 @media (max-width: 768px) {
+                    .mobile-menu-btn {
+                        display: flex;
+                    }
+
+                    .mobile-overlay {
+                        display: block;
+                    }
+
                     .sidebar-left {
                         position: fixed;
                         left: -100%;
@@ -1340,7 +1599,12 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                     .sidebar-left.open { left: 0; }
                     .layout { grid-template-columns: 1fr; }
-                    .content { padding: 1.5rem; }
+                    .content { padding: 4rem 1.5rem 1.5rem; }
+
+                    .quick-stats {
+                        flex-direction: column;
+                        gap: 1rem;
+                    }
                 }
 
                 /* Print styles */
