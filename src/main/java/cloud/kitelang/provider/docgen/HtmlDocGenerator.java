@@ -280,10 +280,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                 <h2>Import</h2>
                                 <div class="code-wrapper">
                                     <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
-                                    <pre class="code-block"><code><span class="kw">import</span> <span class="name">*</span> <span class="kw">from</span> <span class="str">"%s"</span></code></pre>
+                                    <pre class="code-block"><code><span class="kw">import</span> <span class="type">%s</span> <span class="kw">from</span> <span class="str">"%s"</span></code></pre>
                                 </div>
                             </section>
-            """.formatted(providerInfo.getName().toLowerCase()));
+            """.formatted(resource.getName(), providerInfo.getName().toLowerCase()));
 
         // Example section
         sb.append("""
