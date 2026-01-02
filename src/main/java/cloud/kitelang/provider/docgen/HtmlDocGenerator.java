@@ -274,6 +274,17 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         sb.append("</header>\n");
 
+        // Import section
+        sb.append("""
+                            <section id="import">
+                                <h2>Import</h2>
+                                <div class="code-wrapper">
+                                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                    <pre class="code-block"><code><span class="kw">import</span> <span class="name">*</span> <span class="kw">from</span> <span class="str">"%s"</span></code></pre>
+                                </div>
+                            </section>
+            """.formatted(providerInfo.getName().toLowerCase()));
+
         // Example section
         sb.append("""
                             <section id="example">
@@ -359,6 +370,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     <aside class="sidebar-right">
                         <div class="toc-header">On this page</div>
                         <nav class="toc" aria-label="Table of contents">
+                            <a href="#import">Import</a>
                             <a href="#example">Example</a>
                             <a href="#schema" class="toc-h3">Schema Definition</a>
             """);
