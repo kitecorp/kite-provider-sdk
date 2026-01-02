@@ -52,6 +52,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
     public void generate(Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
 
+        // Generate shared CSS file (cached by browser)
+        Files.writeString(outputDir.resolve("styles.css"), generateStyles());
+
         // Generate index.html
         var indexHtml = generateIndex();
         Files.writeString(outputDir.resolve("index.html"), indexHtml);
@@ -429,6 +432,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 <!-- Canonical URL -->
                 <link rel="canonical" href="%s">
 
+                <!-- Stylesheet -->
+                <link rel="stylesheet" href="styles.css">
+
                 <!-- Open Graph -->
                 <meta property="og:type" content="website">
                 <meta property="og:title" content="%s">
@@ -440,8 +446,6 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 <meta name="twitter:card" content="summary">
                 <meta name="twitter:title" content="%s">
                 <meta name="twitter:description" content="%s">
-
-                %s
             </head>
             """.formatted(
                 escapeHtml(title),
@@ -452,8 +456,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 escapeHtml(description),
                 canonicalUrl,
                 escapeHtml(title),
-                escapeHtml(description),
-                getStyles()
+                escapeHtml(description)
             );
     }
 
@@ -807,10 +810,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
             """;
     }
 
-    private String getStyles() {
+    private String generateStyles() {
         return """
-            <style>
-                :root {
+            :root {
                     --kite-primary: #7c3aed;
                     --kite-primary-light: #a78bfa;
                     --kite-primary-dark: #5b21b6;
@@ -1346,7 +1348,6 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     .content { padding: 0; }
                     .code-block { background: #f5f5f5; color: #333; border: 1px solid #ddd; }
                 }
-            </style>
             """;
     }
 }
