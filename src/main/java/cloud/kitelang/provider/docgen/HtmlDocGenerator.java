@@ -55,6 +55,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         // Generate shared CSS file (cached by browser)
         Files.writeString(outputDir.resolve("styles.css"), generateStyles());
 
+        // Generate shared JavaScript file (cached by browser)
+        Files.writeString(outputDir.resolve("scripts.js"), generateScripts());
+
         // Generate index.html
         var indexHtml = generateIndex();
         Files.writeString(outputDir.resolve("index.html"), indexHtml);
@@ -172,10 +175,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         </nav>
                     </aside>
                 </div>
-                %s
             </body>
             </html>
-            """.formatted(generateScript()));
+            """);
 
         return sb.toString();
     }
@@ -334,10 +336,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         </nav>
                     </aside>
                 </div>
-                %s
             </body>
             </html>
-            """.formatted(generateScript()));
+            """);
 
         return sb.toString();
     }
@@ -434,6 +435,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 <!-- Stylesheet -->
                 <link rel="stylesheet" href="styles.css">
+
+                <!-- Scripts -->
+                <script src="scripts.js" defer></script>
 
                 <!-- Open Graph -->
                 <meta property="og:type" content="website">
@@ -736,77 +740,75 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         return sb.toString();
     }
 
-    private String generateScript() {
+    private String generateScripts() {
         return """
-            <script>
-                function toggleCategory(header) {
-                    const category = header.parentElement;
-                    const isCollapsed = category.classList.toggle('collapsed');
-                    header.setAttribute('aria-expanded', !isCollapsed);
-                }
+            function toggleCategory(header) {
+                const category = header.parentElement;
+                const isCollapsed = category.classList.toggle('collapsed');
+                header.setAttribute('aria-expanded', !isCollapsed);
+            }
 
-                function toggleSchema(header) {
-                    const section = header.parentElement;
-                    const isExpanded = section.classList.toggle('expanded');
-                    header.setAttribute('aria-expanded', isExpanded);
-                }
+            function toggleSchema(header) {
+                const section = header.parentElement;
+                const isExpanded = section.classList.toggle('expanded');
+                header.setAttribute('aria-expanded', isExpanded);
+            }
 
-                function copyCode(btn) {
-                    const code = btn.parentElement.querySelector('code').textContent;
-                    navigator.clipboard.writeText(code).then(() => {
-                        btn.textContent = 'Copied!';
-                        btn.classList.add('copied');
-                        setTimeout(() => {
-                            btn.textContent = 'Copy';
-                            btn.classList.remove('copied');
-                        }, 2000);
-                    });
-                }
-
-                // Search functionality
-                document.getElementById('search')?.addEventListener('input', function(e) {
-                    const query = e.target.value.toLowerCase();
-
-                    document.querySelectorAll('.nav-category').forEach(category => {
-                        let hasVisible = false;
-
-                        category.querySelectorAll('.nav-item').forEach(item => {
-                            const name = item.dataset.name;
-                            const visible = name.includes(query);
-                            item.style.display = visible ? '' : 'none';
-                            if (visible) hasVisible = true;
-                        });
-
-                        category.style.display = hasVisible ? '' : 'none';
-
-                        if (query && hasVisible) {
-                            category.classList.remove('collapsed');
-                        }
-                    });
+            function copyCode(btn) {
+                const code = btn.parentElement.querySelector('code').textContent;
+                navigator.clipboard.writeText(code).then(() => {
+                    btn.textContent = 'Copied!';
+                    btn.classList.add('copied');
+                    setTimeout(() => {
+                        btn.textContent = 'Copy';
+                        btn.classList.remove('copied');
+                    }, 2000);
                 });
+            }
 
-                // Highlight current TOC item on scroll
-                const observerOptions = {
-                    rootMargin: '-20% 0px -80% 0px'
-                };
+            // Search functionality
+            document.getElementById('search')?.addEventListener('input', function(e) {
+                const query = e.target.value.toLowerCase();
 
-                const observer = new IntersectionObserver((entries) => {
-                    entries.forEach(entry => {
-                        const id = entry.target.getAttribute('id');
-                        const tocLink = document.querySelector(`.toc a[href="#${id}"]`);
-                        if (tocLink) {
-                            if (entry.isIntersecting) {
-                                document.querySelectorAll('.toc a').forEach(a => a.classList.remove('active'));
-                                tocLink.classList.add('active');
-                            }
-                        }
+                document.querySelectorAll('.nav-category').forEach(category => {
+                    let hasVisible = false;
+
+                    category.querySelectorAll('.nav-item').forEach(item => {
+                        const name = item.dataset.name;
+                        const visible = name.includes(query);
+                        item.style.display = visible ? '' : 'none';
+                        if (visible) hasVisible = true;
                     });
-                }, observerOptions);
 
-                document.querySelectorAll('section[id], h2[id]').forEach(section => {
-                    observer.observe(section);
+                    category.style.display = hasVisible ? '' : 'none';
+
+                    if (query && hasVisible) {
+                        category.classList.remove('collapsed');
+                    }
                 });
-            </script>
+            });
+
+            // Highlight current TOC item on scroll
+            const observerOptions = {
+                rootMargin: '-20% 0px -80% 0px'
+            };
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    const id = entry.target.getAttribute('id');
+                    const tocLink = document.querySelector(`.toc a[href="#${id}"]`);
+                    if (tocLink) {
+                        if (entry.isIntersecting) {
+                            document.querySelectorAll('.toc a').forEach(a => a.classList.remove('active'));
+                            tocLink.classList.add('active');
+                        }
+                    }
+                });
+            }, observerOptions);
+
+            document.querySelectorAll('section[id], h2[id]').forEach(section => {
+                observer.observe(section);
+            });
             """;
     }
 
@@ -911,7 +913,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 .search-input {
-                    width: 100%%;
+                    width: 100%;
                     padding: 0.5rem 0.75rem;
                     border: 1px solid var(--border-color);
                     border-radius: 0.375rem;
@@ -996,7 +998,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     min-width: 0;
                 }
 
-                .resource-content { max-width: 100%%; }
+                .resource-content { max-width: 100%; }
 
                 .breadcrumbs {
                     display: flex;
@@ -1178,7 +1180,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 table {
-                    width: 100%%;
+                    width: 100%;
                     border-collapse: collapse;
                     font-size: 0.875rem;
                 }
@@ -1220,7 +1222,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 .valid-value {
                     background: rgba(124, 58, 237, 0.1);
-                    color: var(--kite-primary);
+                    color: var(--kite-success);
                     padding: 0.125rem 0.375rem;
                     border-radius: 0.25rem;
                     font-size: 0.75rem;
