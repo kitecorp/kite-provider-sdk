@@ -71,6 +71,15 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         // Generate sitemap.xml
         var sitemap = generateSitemap();
         Files.writeString(outputDir.resolve("sitemap.xml"), sitemap);
+
+        // Generate robots.txt
+        Files.writeString(outputDir.resolve("robots.txt"), generateRobotsTxt());
+
+        // Generate RSS feed
+        Files.writeString(outputDir.resolve("feed.xml"), generateRssFeed());
+
+        // Generate OpenSearch description
+        Files.writeString(outputDir.resolve("opensearch.xml"), generateOpenSearch());
     }
 
     private String generateIndex() {
@@ -502,6 +511,12 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 <!-- Scripts -->
                 <script src="scripts.js" defer></script>
 
+                <!-- RSS Feed -->
+                <link rel="alternate" type="application/rss+xml" title="%s Provider Resources" href="feed.xml">
+
+                <!-- OpenSearch -->
+                <link rel="search" type="application/opensearchdescription+xml" title="Kite %s Docs" href="opensearch.xml">
+
                 <!-- Open Graph -->
                 <meta property="og:type" content="website">
                 <meta property="og:title" content="%s">
@@ -519,6 +534,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 escapeHtml(description),
                 providerName,
                 canonicalUrl,
+                capitalize(providerInfo.getName()),  // RSS feed title
+                capitalize(providerInfo.getName()),  // OpenSearch title
                 escapeHtml(title),
                 escapeHtml(description),
                 canonicalUrl,
@@ -603,6 +620,104 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         sb.append("</urlset>\n");
         return sb.toString();
+    }
+
+    private String generateRobotsTxt() {
+        var providerName = providerInfo.getName().toLowerCase();
+        return """
+            # Kite %s Provider Documentation
+            # https://docs.kitelang.cloud/%s/
+
+            User-agent: *
+            Allow: /
+
+            # Sitemap location
+            Sitemap: %s/%s/sitemap.xml
+            """.formatted(
+                capitalize(providerInfo.getName()),
+                providerName,
+                BASE_URL,
+                providerName
+            );
+    }
+
+    private String generateRssFeed() {
+        var sb = new StringBuilder();
+        var providerName = providerInfo.getName().toLowerCase();
+        var buildDate = LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+
+        sb.append("""
+            <?xml version="1.0" encoding="UTF-8"?>
+            <rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+                <channel>
+                    <title>%s Provider Resources | Kite</title>
+                    <description>Infrastructure as code resources for %s provider. Stay updated with the latest resource documentation.</description>
+                    <link>%s/%s/</link>
+                    <atom:link href="%s/%s/feed.xml" rel="self" type="application/rss+xml"/>
+                    <language>en-us</language>
+                    <lastBuildDate>%s</lastBuildDate>
+                    <generator>Kite Documentation Generator</generator>
+            """.formatted(
+                capitalize(providerInfo.getName()),
+                capitalize(providerInfo.getName()),
+                BASE_URL, providerName,
+                BASE_URL, providerName,
+                buildDate
+            ));
+
+        for (var resource : resources) {
+            var domain = resource.getDomain() != null ? resource.getDomain() : "general";
+            var description = resource.getDescription() != null && !resource.getDescription().isEmpty()
+                    ? escapeHtml(resource.getDescription())
+                    : "Documentation for " + resource.getName() + " resource.";
+
+            sb.append("""
+                    <item>
+                        <title>%s</title>
+                        <description>%s</description>
+                        <link>%s/%s/%s.html</link>
+                        <guid isPermaLink="true">%s/%s/%s.html</guid>
+                        <category>%s</category>
+                    </item>
+                """.formatted(
+                    resource.getName(),
+                    description,
+                    BASE_URL, providerName, resource.getName(),
+                    BASE_URL, providerName, resource.getName(),
+                    capitalize(domain)
+                ));
+        }
+
+        sb.append("""
+                </channel>
+            </rss>
+            """);
+        return sb.toString();
+    }
+
+    private String generateOpenSearch() {
+        var providerName = providerInfo.getName().toLowerCase();
+        var displayName = capitalize(providerInfo.getName());
+
+        return """
+            <?xml version="1.0" encoding="UTF-8"?>
+            <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
+                <ShortName>Kite %s</ShortName>
+                <Description>Search %s provider documentation for Kite infrastructure as code</Description>
+                <Tags>kite iac infrastructure cloud %s terraform</Tags>
+                <Contact>support@kitelang.cloud</Contact>
+                <Url type="text/html" template="%s/%s/index.html?q={searchTerms}"/>
+                <Image width="16" height="16" type="image/x-icon">data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🪁&lt;/text&gt;&lt;/svg&gt;</Image>
+                <InputEncoding>UTF-8</InputEncoding>
+                <OutputEncoding>UTF-8</OutputEncoding>
+            </OpenSearchDescription>
+            """.formatted(
+                displayName,
+                displayName,
+                providerName,
+                BASE_URL,
+                providerName
+            );
     }
 
     private String generateHighlightedExample(ResourceInfo resource) {
