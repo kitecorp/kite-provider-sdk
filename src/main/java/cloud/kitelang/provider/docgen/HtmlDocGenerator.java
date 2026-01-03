@@ -806,18 +806,34 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .filter(PropertyInfo::isCloudManaged)
                 .toList();
 
-        if (!userProps.isEmpty()) {
+        // Properties section with tabs (if both user and cloud props exist)
+        if (!userProps.isEmpty() || !cloudProps.isEmpty()) {
             sb.append("<section id=\"properties\">\n");
             sb.append("<h2>Properties</h2>\n");
-            sb.append(generatePropertiesTable(userProps, false));
-            sb.append("</section>\n");
-        }
 
-        if (!cloudProps.isEmpty()) {
-            sb.append("<section id=\"cloud-properties\">\n");
-            sb.append("<h2>Cloud Properties</h2>\n");
-            sb.append("<p class=\"cloud-desc\">Read-only properties set by the cloud provider after resource creation.</p>\n");
-            sb.append(generatePropertiesTable(cloudProps, true));
+            if (!userProps.isEmpty() && !cloudProps.isEmpty()) {
+                // Tabbed view when both types exist
+                sb.append("<div class=\"property-tabs\">\n");
+                sb.append("<button class=\"property-tab active\" onclick=\"showPropertyTab(this, 'user')\">User Properties</button>\n");
+                sb.append("<button class=\"property-tab\" onclick=\"showPropertyTab(this, 'cloud')\">Cloud Properties</button>\n");
+                sb.append("</div>\n");
+                sb.append("<div class=\"property-content active\" id=\"props-user\">\n");
+                sb.append("<p class=\"props-desc\">Properties you configure when defining the resource.</p>\n");
+                sb.append(generatePropertiesTable(userProps, false));
+                sb.append("</div>\n");
+                sb.append("<div class=\"property-content\" id=\"props-cloud\">\n");
+                sb.append("<p class=\"cloud-desc\">Read-only properties set by the cloud provider after resource creation.</p>\n");
+                sb.append(generatePropertiesTable(cloudProps, true));
+                sb.append("</div>\n");
+            } else if (!userProps.isEmpty()) {
+                // Only user props
+                sb.append(generatePropertiesTable(userProps, false));
+            } else {
+                // Only cloud props
+                sb.append("<p class=\"cloud-desc\">Read-only properties set by the cloud provider after resource creation.</p>\n");
+                sb.append(generatePropertiesTable(cloudProps, true));
+            }
+
             sb.append("</section>\n");
         }
 
@@ -912,11 +928,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                             <a href="#schema" class="toc-h3">Schema Definition</a>
             """);
 
-        if (!userProps.isEmpty()) {
+        if (!userProps.isEmpty() || !cloudProps.isEmpty()) {
             sb.append("<a href=\"#properties\">Properties</a>\n");
-        }
-        if (!cloudProps.isEmpty()) {
-            sb.append("<a href=\"#cloud-properties\">Cloud Properties</a>\n");
         }
         if (!relatedResources.isEmpty()) {
             sb.append("<a href=\"#related\">Related Resources</a>\n");
@@ -1980,6 +1993,16 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 btn.classList.add('active');
             }
 
+            // Property tabs switching
+            function showPropertyTab(btn, type) {
+                // Hide all property content
+                document.querySelectorAll('.property-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.property-tab').forEach(t => t.classList.remove('active'));
+                // Show selected
+                document.getElementById('props-' + type)?.classList.add('active');
+                btn.classList.add('active');
+            }
+
             // Copy property deep link
             function copyPropLink(propName) {
                 const url = window.location.origin + window.location.pathname + '#prop-' + propName;
@@ -2437,7 +2460,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     color: var(--text-primary);
                 }
 
-                .resource-desc, .cloud-desc, .welcome-text {
+                .resource-desc, .cloud-desc, .props-desc, .welcome-text {
                     color: var(--text-secondary);
                     margin-bottom: 1.5rem;
                 }
@@ -2959,8 +2982,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     transform: translateX(-50%) translateY(0);
                 }
 
-                /* Example tabs */
-                .example-tabs {
+                /* Tabs (shared styling for example and property tabs) */
+                .example-tabs, .property-tabs {
                     display: flex;
                     gap: 0.5rem;
                     margin-bottom: 1rem;
@@ -2968,33 +2991,33 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     padding-bottom: 0.5rem;
                 }
 
-                .example-tab {
+                .example-tab, .property-tab {
                     padding: 0.5rem 1rem;
                     background: none;
                     border: none;
                     color: var(--text-secondary);
                     font-size: 0.875rem;
                     cursor: pointer;
-                    border-radius: 0.375rem 0.375rem 0 0;
+                    border-radius: 0.375rem;
                     transition: all 0.15s;
                 }
 
-                .example-tab:hover {
+                .example-tab:hover, .property-tab:hover {
                     color: var(--text-primary);
                     background: var(--bg-hover);
                 }
 
-                .example-tab.active {
+                .example-tab.active, .property-tab.active {
                     color: var(--kite-primary);
                     background: rgba(124, 58, 237, 0.1);
                     font-weight: 500;
                 }
 
-                .example-content {
+                .example-content, .property-content {
                     display: none;
                 }
 
-                .example-content.active {
+                .example-content.active, .property-content.active {
                     display: block;
                 }
 
