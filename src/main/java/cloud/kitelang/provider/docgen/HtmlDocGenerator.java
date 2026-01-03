@@ -147,7 +147,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                 <h3>Define a resource</h3>
                                 <div class="code-wrapper">
                                     <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
-                                    <pre class="code-block"><code><span class="kw">resource</span> <span class="type">%s</span> <span class="name">my_resource</span> <span class="brace">{</span>
+                                    <pre class="code-block"><code><span class="kw">resource</span> <span class="type">%s</span> <span class="name">myResource</span> <span class="brace">{</span>
     <span class="comment">// Configure properties here</span>
 <span class="brace">}</span></code></pre>
                                 </div>
@@ -222,6 +222,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         </nav>
                     </aside>
                 </div>
+                <button class="back-to-top" onclick="scrollToTop()" aria-label="Back to top" title="Back to top">↑</button>
+                <div id="toast" class="toast" role="alert" aria-live="polite"></div>
             </body>
             </html>
             """);
@@ -430,6 +432,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         </nav>
                     </aside>
                 </div>
+                <button class="back-to-top" onclick="scrollToTop()" aria-label="Back to top" title="Back to top">↑</button>
+                <div id="toast" class="toast" role="alert" aria-live="polite"></div>
             </body>
             </html>
             """);
@@ -444,9 +448,15 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         sb.append("""
                     <aside class="sidebar-left">
                         <div class="sidebar-header">
-                            <a href="index.html" class="logo-link">
-                                <h1>🪁 %s</h1>
-                            </a>
+                            <div class="header-top">
+                                <a href="index.html" class="logo-link">
+                                    <h1>🪁 %s</h1>
+                                </a>
+                                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark/light mode" title="Toggle theme">
+                                    <span class="theme-icon-light">☀️</span>
+                                    <span class="theme-icon-dark">🌙</span>
+                                </button>
+                            </div>
                             <span class="version">v%s</span>
                         </div>
                         <div class="search-wrapper">
@@ -454,6 +464,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                 <input type="search" id="search" placeholder="Search resources..." class="search-input" aria-label="Search resources">
                                 <kbd class="search-hint">/</kbd>
                             </div>
+                        </div>
+                        <div id="recently-viewed" class="recently-viewed" style="display: none;">
+                            <div class="recently-header">Recently Viewed</div>
+                            <ul class="recently-list"></ul>
                         </div>
                         <nav class="nav-tree" aria-label="Resources navigation">
             """.formatted(capitalize(providerInfo.getName()), providerInfo.getVersion()));
@@ -1090,6 +1104,85 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
     private String generateScripts() {
         return """
+            // Theme toggle (dark/light mode)
+            function toggleTheme() {
+                const html = document.documentElement;
+                const currentTheme = html.getAttribute('data-theme');
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                html.setAttribute('data-theme', newTheme);
+                localStorage.setItem('kite-theme', newTheme);
+            }
+
+            // Initialize theme from localStorage or system preference
+            (function initTheme() {
+                const saved = localStorage.getItem('kite-theme');
+                if (saved) {
+                    document.documentElement.setAttribute('data-theme', saved);
+                } else if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            })();
+
+            // Back to top button
+            function scrollToTop() {
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+            }
+
+            // Show/hide back to top button based on scroll position
+            window.addEventListener('scroll', function() {
+                const btn = document.querySelector('.back-to-top');
+                if (btn) {
+                    btn.classList.toggle('visible', window.scrollY > 300);
+                }
+            });
+
+            // Toast notification
+            function showToast(message, duration = 2000) {
+                const toast = document.getElementById('toast');
+                if (toast) {
+                    toast.textContent = message;
+                    toast.classList.add('show');
+                    setTimeout(() => toast.classList.remove('show'), duration);
+                }
+            }
+
+            // Recently viewed resources (localStorage)
+            function addToRecentlyViewed(name) {
+                if (!name || name === 'index') return;
+                let recent = JSON.parse(localStorage.getItem('kite-recent') || '[]');
+                recent = recent.filter(r => r !== name);
+                recent.unshift(name);
+                recent = recent.slice(0, 5);
+                localStorage.setItem('kite-recent', JSON.stringify(recent));
+            }
+
+            function renderRecentlyViewed() {
+                const container = document.getElementById('recently-viewed');
+                const list = container?.querySelector('.recently-list');
+                if (!container || !list) return;
+
+                const recent = JSON.parse(localStorage.getItem('kite-recent') || '[]');
+                if (recent.length === 0) {
+                    container.style.display = 'none';
+                    return;
+                }
+
+                container.style.display = 'block';
+                list.innerHTML = recent.map(name =>
+                    `<li><a href="${name}.html">${name}</a></li>`
+                ).join('');
+            }
+
+            // Track current page view
+            (function trackPageView() {
+                const path = window.location.pathname;
+                const match = path.match(/\\/([^/]+)\\.html$/);
+                if (match && match[1] !== 'index') {
+                    addToRecentlyViewed(match[1]);
+                }
+                renderRecentlyViewed();
+            })();
+
             // Mobile menu toggle
             function toggleMobileMenu() {
                 const sidebar = document.querySelector('.sidebar-left');
@@ -1117,6 +1210,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 navigator.clipboard.writeText(code).then(() => {
                     btn.textContent = 'Copied!';
                     btn.classList.add('copied');
+                    showToast('Copied to clipboard!');
                     setTimeout(() => {
                         btn.textContent = 'Copy';
                         btn.classList.remove('copied');
@@ -1211,6 +1305,18 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         // Already handled by link click
                     }
                 }
+
+                // j/k navigation between resources (like GitHub)
+                if ((e.key === 'j' || e.key === 'k') && document.activeElement.tagName !== 'INPUT') {
+                    const prevLink = document.querySelector('.nav-prev');
+                    const nextLink = document.querySelector('.nav-next');
+
+                    if (e.key === 'j' && nextLink) {
+                        window.location.href = nextLink.href;
+                    } else if (e.key === 'k' && prevLink) {
+                        window.location.href = prevLink.href;
+                    }
+                }
             });
 
             // Highlight current TOC item on scroll
@@ -1293,7 +1399,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 @media (prefers-color-scheme: dark) {
-                    :root {
+                    :root:not([data-theme="light"]) {
                         --bg-body: #0f172a;
                         --bg-sidebar: #1e293b;
                         --bg-content: #1e293b;
@@ -1306,6 +1412,21 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                         --border-color: #334155;
                     }
+                }
+
+                /* Manual dark theme override */
+                :root[data-theme="dark"] {
+                    --bg-body: #0f172a;
+                    --bg-sidebar: #1e293b;
+                    --bg-content: #1e293b;
+                    --bg-code: #0f172a;
+                    --bg-hover: #334155;
+
+                    --text-primary: #f1f5f9;
+                    --text-secondary: #94a3b8;
+                    --text-muted: #64748b;
+
+                    --border-color: #334155;
                 }
 
                 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -1419,6 +1540,69 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     background: var(--bg-hover);
                     padding: 0.125rem 0.5rem;
                     border-radius: 9999px;
+                }
+
+                .header-top {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 0.25rem;
+                }
+
+                .theme-toggle {
+                    background: none;
+                    border: none;
+                    cursor: pointer;
+                    font-size: 1.25rem;
+                    padding: 0.25rem;
+                    border-radius: 0.25rem;
+                    transition: background 0.15s;
+                }
+
+                .theme-toggle:hover {
+                    background: var(--bg-hover);
+                }
+
+                .theme-icon-dark { display: none; }
+                :root[data-theme="dark"] .theme-icon-light { display: none; }
+                :root[data-theme="dark"] .theme-icon-dark { display: inline; }
+                @media (prefers-color-scheme: dark) {
+                    :root:not([data-theme="light"]) .theme-icon-light { display: none; }
+                    :root:not([data-theme="light"]) .theme-icon-dark { display: inline; }
+                }
+
+                /* Recently viewed */
+                .recently-viewed {
+                    padding: 0.75rem 1.5rem;
+                    border-bottom: 1px solid var(--border-color);
+                }
+
+                .recently-header {
+                    font-size: 0.7rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
+                    color: var(--text-muted);
+                    margin-bottom: 0.5rem;
+                }
+
+                .recently-list {
+                    list-style: none;
+                }
+
+                .recently-list li {
+                    margin-bottom: 0.25rem;
+                }
+
+                .recently-list a {
+                    color: var(--text-secondary);
+                    text-decoration: none;
+                    font-size: 0.875rem;
+                    transition: color 0.15s;
+                }
+
+                .recently-list a:hover {
+                    color: var(--kite-primary);
                 }
 
                 .search-wrapper {
@@ -1764,6 +1948,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     font-size: 0.75rem;
                     text-transform: uppercase;
                     letter-spacing: 0.05em;
+                    position: sticky;
+                    top: 0;
+                    z-index: 10;
                 }
 
                 tr:hover { background: var(--bg-hover); }
@@ -2002,6 +2189,62 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 .anchor-link:hover {
                     color: var(--kite-primary);
+                }
+
+                /* Back to top button */
+                .back-to-top {
+                    position: fixed;
+                    bottom: 2rem;
+                    right: 2rem;
+                    width: 44px;
+                    height: 44px;
+                    background: var(--kite-primary);
+                    color: white;
+                    border: none;
+                    border-radius: 50%;
+                    font-size: 1.25rem;
+                    cursor: pointer;
+                    opacity: 0;
+                    visibility: hidden;
+                    transform: translateY(20px);
+                    transition: all 0.3s ease;
+                    box-shadow: var(--shadow-md);
+                    z-index: 100;
+                }
+
+                .back-to-top.visible {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateY(0);
+                }
+
+                .back-to-top:hover {
+                    background: var(--kite-primary-dark);
+                    transform: translateY(-2px);
+                }
+
+                /* Toast notification */
+                .toast {
+                    position: fixed;
+                    bottom: 2rem;
+                    left: 50%;
+                    transform: translateX(-50%) translateY(100px);
+                    background: var(--bg-code);
+                    color: var(--text-code);
+                    padding: 0.75rem 1.5rem;
+                    border-radius: 0.5rem;
+                    font-size: 0.875rem;
+                    box-shadow: var(--shadow-md);
+                    opacity: 0;
+                    visibility: hidden;
+                    transition: all 0.3s ease;
+                    z-index: 200;
+                }
+
+                .toast.show {
+                    opacity: 1;
+                    visibility: visible;
+                    transform: translateX(-50%) translateY(0);
                 }
 
                 /* Print styles */
