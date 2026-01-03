@@ -8,6 +8,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -80,6 +81,145 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         // Generate OpenSearch description
         Files.writeString(outputDir.resolve("opensearch.xml"), generateOpenSearch());
+
+        // Generate manifest.json for version diffing
+        Files.writeString(outputDir.resolve("manifest.json"), generateManifest());
+
+        // Generate changelog.html (loads changelog.json dynamically)
+        Files.writeString(outputDir.resolve("changelog.html"), generateChangelogPage());
+    }
+
+    private String generateChangelogPage() {
+        return """
+            <!DOCTYPE html>
+            <html lang="en">
+            <head>
+                <meta charset="UTF-8">
+                <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                <title>What's New - %s Provider | Kite</title>
+                <link rel="stylesheet" href="styles.css">
+            </head>
+            <body>
+                <a href="#main-content" class="skip-link">Skip to main content</a>
+                %s
+                <main id="main-content" class="content">
+                    <article class="resource-content">
+                        <h1>What's New in v%s</h1>
+                        <div id="changelog-content">
+                            <p class="loading">Loading changelog...</p>
+                        </div>
+                    </article>
+                </main>
+                <script src="scripts.js"></script>
+                <script>
+                    fetch('changelog.json')
+                        .then(r => r.ok ? r.json() : null)
+                        .catch(() => null)
+                        .then(data => {
+                            const container = document.getElementById('changelog-content');
+                            if (!data) {
+                                container.innerHTML = '<p class="no-changes">This is the first version. No previous version to compare.</p>';
+                                return;
+                            }
+
+                            let html = '<p class="changelog-meta">Changes from <strong>v' + data.fromVersion + '</strong> to <strong>v' + data.toVersion + '</strong></p>';
+
+                            // Added resources
+                            if (data.addedResources && data.addedResources.length > 0) {
+                                html += '<section class="changelog-section"><h2>✨ New Resources</h2><ul class="changelog-list added">';
+                                data.addedResources.forEach(r => {
+                                    html += '<li><a href="' + r + '.html">' + r + '</a></li>';
+                                });
+                                html += '</ul></section>';
+                            }
+
+                            // Removed resources
+                            if (data.removedResources && data.removedResources.length > 0) {
+                                html += '<section class="changelog-section"><h2>🗑️ Removed Resources</h2><ul class="changelog-list removed">';
+                                data.removedResources.forEach(r => {
+                                    html += '<li>' + r + '</li>';
+                                });
+                                html += '</ul></section>';
+                            }
+
+                            // Changed resources
+                            if (data.changedResources && Object.keys(data.changedResources).length > 0) {
+                                html += '<section class="changelog-section"><h2>🔄 Changed Resources</h2>';
+                                for (const [resource, changes] of Object.entries(data.changedResources)) {
+                                    html += '<div class="resource-changes"><h3><a href="' + resource + '.html">' + resource + '</a></h3>';
+                                    if (changes.addedProperties && changes.addedProperties.length > 0) {
+                                        html += '<p class="prop-change added">Added: <code>' + changes.addedProperties.join('</code>, <code>') + '</code></p>';
+                                    }
+                                    if (changes.removedProperties && changes.removedProperties.length > 0) {
+                                        html += '<p class="prop-change removed">Removed: <code>' + changes.removedProperties.join('</code>, <code>') + '</code></p>';
+                                    }
+                                    html += '</div>';
+                                }
+                                html += '</section>';
+                            }
+
+                            if (!data.addedResources?.length && !data.removedResources?.length && !Object.keys(data.changedResources || {}).length) {
+                                html += '<p class="no-changes">No changes detected in this version.</p>';
+                            }
+
+                            container.innerHTML = html;
+                        });
+                </script>
+            </body>
+            </html>
+            """.formatted(
+                capitalize(providerInfo.getName()),
+                generateNavigation(null),
+                providerInfo.getVersion()
+            );
+    }
+
+    private String generateManifest() {
+        var sb = new StringBuilder();
+        sb.append("{\n");
+        sb.append("  \"provider\": \"").append(providerInfo.getName().toLowerCase()).append("\",\n");
+        sb.append("  \"version\": \"").append(providerInfo.getVersion()).append("\",\n");
+        sb.append("  \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\",\n");
+        sb.append("  \"resources\": {\n");
+
+        var resourceList = new ArrayList<>(resources);
+        for (int i = 0; i < resourceList.size(); i++) {
+            var resource = resourceList.get(i);
+            sb.append("    \"").append(resource.getName()).append("\": {\n");
+            sb.append("      \"domain\": \"").append(resource.getDomain() != null ? resource.getDomain() : "general").append("\",\n");
+            sb.append("      \"properties\": {\n");
+
+            var props = resource.getProperties();
+            var propList = new ArrayList<>(props);
+            for (int j = 0; j < propList.size(); j++) {
+                var prop = propList.get(j);
+                sb.append("        \"").append(prop.getName()).append("\": {\n");
+                sb.append("          \"type\": \"").append(escapeJson(prop.getType())).append("\",\n");
+                sb.append("          \"required\": ").append(prop.isRequired()).append(",\n");
+                sb.append("          \"cloudManaged\": ").append(prop.isCloudManaged()).append(",\n");
+                sb.append("          \"deprecated\": ").append(prop.isDeprecated());
+                if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
+                    sb.append(",\n          \"default\": \"").append(escapeJson(prop.getDefaultValue())).append("\"");
+                }
+                sb.append("\n        }");
+                if (j < propList.size() - 1) sb.append(",");
+                sb.append("\n");
+            }
+
+            sb.append("      }\n");
+            sb.append("    }");
+            if (i < resourceList.size() - 1) sb.append(",");
+            sb.append("\n");
+        }
+
+        sb.append("  }\n");
+        sb.append("}\n");
+        return sb.toString();
+    }
+
+    private String escapeJson(String s) {
+        if (s == null) return "";
+        return s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n");
     }
 
     private String generateIndex() {
@@ -513,6 +653,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                     <option value="%s" selected>v%s</option>
                                 </select>
                             </div>
+                            <a href="changelog.html" class="whats-new-link">✨ What's New</a>
                         </div>
                         <div class="search-wrapper">
                             <div class="search-container">
@@ -2621,6 +2762,99 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 .footer-date {
                     color: var(--text-muted);
+                }
+
+                /* Changelog styles */
+                .changelog-meta {
+                    color: var(--text-secondary);
+                    margin-bottom: 2rem;
+                }
+
+                .changelog-section {
+                    margin-bottom: 2rem;
+                }
+
+                .changelog-section h2 {
+                    font-size: 1.25rem;
+                    margin-bottom: 1rem;
+                }
+
+                .changelog-list {
+                    list-style: none;
+                    padding: 0;
+                }
+
+                .changelog-list li {
+                    padding: 0.5rem 0;
+                    border-bottom: 1px solid var(--border-color);
+                }
+
+                .changelog-list.added li::before {
+                    content: "+ ";
+                    color: #22c55e;
+                    font-weight: bold;
+                }
+
+                .changelog-list.removed li::before {
+                    content: "- ";
+                    color: #ef4444;
+                    font-weight: bold;
+                }
+
+                .resource-changes {
+                    background: var(--bg-secondary);
+                    padding: 1rem;
+                    border-radius: 0.5rem;
+                    margin-bottom: 1rem;
+                }
+
+                .resource-changes h3 {
+                    margin: 0 0 0.5rem 0;
+                    font-size: 1rem;
+                }
+
+                .prop-change {
+                    margin: 0.25rem 0;
+                    font-size: 0.875rem;
+                }
+
+                .prop-change.added {
+                    color: #22c55e;
+                }
+
+                .prop-change.removed {
+                    color: #ef4444;
+                }
+
+                .prop-change code {
+                    background: var(--bg-hover);
+                    padding: 0.125rem 0.25rem;
+                    border-radius: 0.25rem;
+                }
+
+                .no-changes {
+                    color: var(--text-muted);
+                    font-style: italic;
+                }
+
+                .loading {
+                    color: var(--text-muted);
+                }
+
+                .whats-new-link {
+                    display: block;
+                    padding: 0.5rem 0.75rem;
+                    margin: 0.5rem 0;
+                    background: rgba(124, 58, 237, 0.1);
+                    border-radius: 0.375rem;
+                    color: var(--kite-primary);
+                    text-decoration: none;
+                    font-size: 0.875rem;
+                    transition: all 0.15s;
+                }
+
+                .whats-new-link:hover {
+                    background: rgba(124, 58, 237, 0.2);
                 }
 
                 /* Print styles */
