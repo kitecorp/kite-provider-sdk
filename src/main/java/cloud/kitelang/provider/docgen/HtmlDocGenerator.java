@@ -306,16 +306,39 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                             </section>
             """.formatted(resource.getName(), importPath));
 
-        // Example section
+        // Example section with tabs
         sb.append("""
                             <section id="example">
-                                <h2>Example</h2>
-                                <div class="code-wrapper">
-                                    <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
-                                    <pre class="code-block"><code itemprop="text">%s</code></pre>
+                                <h2>Examples</h2>
+                                <div class="example-tabs">
+                                    <button class="example-tab active" onclick="showExample(this, 'basic')">Basic</button>
+                                    <button class="example-tab" onclick="showExample(this, 'references')">With References</button>
+                                    <button class="example-tab" onclick="showExample(this, 'complete')">Complete</button>
+                                </div>
+                                <div class="example-content active" id="example-basic">
+                                    <div class="code-wrapper">
+                                        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                        <pre class="code-block"><code itemprop="text">%s</code></pre>
+                                    </div>
+                                </div>
+                                <div class="example-content" id="example-references">
+                                    <div class="code-wrapper">
+                                        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                        <pre class="code-block"><code>%s</code></pre>
+                                    </div>
+                                </div>
+                                <div class="example-content" id="example-complete">
+                                    <div class="code-wrapper">
+                                        <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                                        <pre class="code-block"><code>%s</code></pre>
+                                    </div>
                                 </div>
                             </section>
-            """.formatted(generateHighlightedExample(resource)));
+            """.formatted(
+                generateHighlightedExample(resource),
+                generateReferencesExample(resource, domain),
+                generateCompleteExample(resource)
+            ));
 
         // Schema section
         sb.append("""
@@ -397,13 +420,37 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         }
         sb.append("</nav>\n");
 
+        var pageUrl = BASE_URL + "/" + providerInfo.getName().toLowerCase() + "/" + resource.getName() + ".html";
+        var pageTitle = resource.getName() + " - Kite " + capitalize(providerInfo.getName()) + " Provider";
+        var issueTitle = "Docs: " + resource.getName() + " - ";
+        var issueBody = "**Resource:** " + resource.getName() + "%0A**Provider:** " + providerInfo.getName() + "%0A**Page:** " + pageUrl + "%0A%0A**Issue:**%0A";
+
         sb.append("""
                             <footer class="resource-footer">
-                                <p>Generated on <time datetime="%s">%s</time></p>
+                                <div class="footer-actions">
+                                    <div class="share-buttons">
+                                        <span class="share-label">Share:</span>
+                                        <a href="https://twitter.com/intent/tweet?text=%s&url=%s" target="_blank" rel="noopener" class="share-btn share-twitter" title="Share on Twitter">
+                                            <span>𝕏</span>
+                                        </a>
+                                        <a href="https://www.linkedin.com/sharing/share-offsite/?url=%s" target="_blank" rel="noopener" class="share-btn share-linkedin" title="Share on LinkedIn">
+                                            <span>in</span>
+                                        </a>
+                                    </div>
+                                    <a href="https://github.com/kitelang/kite/issues/new?title=%s&body=%s" target="_blank" rel="noopener" class="report-issue">
+                                        Report an issue
+                                    </a>
+                                </div>
+                                <p class="footer-date">Generated on <time datetime="%s">%s</time></p>
                             </footer>
                         </article>
                     </main>
             """.formatted(
+                escapeHtml(pageTitle).replace(" ", "%20"),
+                pageUrl,
+                pageUrl,
+                escapeHtml(issueTitle).replace(" ", "%20"),
+                issueBody,
                 LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME),
                 LocalDateTime.now().format(DateTimeFormatter.ofPattern("MMMM d, yyyy"))
             ));
@@ -932,6 +979,99 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         return sb.toString();
     }
 
+    private String generateReferencesExample(ResourceInfo resource, String domain) {
+        var sb = new StringBuilder();
+        var props = resource.getProperties().stream()
+                .filter(p -> !p.isCloudManaged() && !p.isDeprecated())
+                .toList();
+
+        // Find related resources in same domain to reference
+        var relatedResources = resources.stream()
+                .filter(r -> domain.equals(r.getDomain() != null ? r.getDomain() : "general"))
+                .filter(r -> !r.getName().equals(resource.getName()))
+                .limit(2)
+                .toList();
+
+        sb.append("<span class=\"comment\">// Example with resource references</span>\n\n");
+
+        // Add referenced resources first
+        for (var related : relatedResources) {
+            sb.append("<span class=\"kw\">resource</span> ");
+            sb.append("<span class=\"type\">").append(related.getName()).append("</span> ");
+            sb.append("<span class=\"name\">my_").append(related.getName().toLowerCase()).append("</span> ");
+            sb.append("<span class=\"brace\">{</span>\n");
+            sb.append("    <span class=\"comment\">// ... configuration</span>\n");
+            sb.append("<span class=\"brace\">}</span>\n\n");
+        }
+
+        // Main resource with references
+        sb.append("<span class=\"kw\">resource</span> ");
+        sb.append("<span class=\"type\">").append(resource.getName()).append("</span> ");
+        sb.append("<span class=\"name\">example</span> ");
+        sb.append("<span class=\"brace\">{</span>\n");
+
+        int count = 0;
+        for (var prop : props) {
+            sb.append("    <span class=\"prop\">").append(prop.getName()).append("</span>");
+            sb.append(" <span class=\"eq\">=</span> ");
+
+            // Use reference for first few props if we have related resources
+            if (count < relatedResources.size() && prop.getType().equals("string")) {
+                var related = relatedResources.get(count);
+                sb.append("<span class=\"name\">my_").append(related.getName().toLowerCase())
+                  .append("</span>.<span class=\"prop\">id</span>");
+            } else {
+                sb.append(getHighlightedExampleValue(prop));
+            }
+            sb.append("\n");
+            count++;
+        }
+
+        sb.append("<span class=\"brace\">}</span>");
+        return sb.toString();
+    }
+
+    private String generateCompleteExample(ResourceInfo resource) {
+        var sb = new StringBuilder();
+        var allProps = resource.getProperties().stream()
+                .filter(p -> !p.isCloudManaged())
+                .toList();
+
+        int maxLen = allProps.stream()
+                .mapToInt(p -> p.getName().length())
+                .max()
+                .orElse(0);
+
+        sb.append("<span class=\"comment\">// Complete example with all properties</span>\n");
+        sb.append("<span class=\"kw\">resource</span> ");
+        sb.append("<span class=\"type\">").append(resource.getName()).append("</span> ");
+        sb.append("<span class=\"name\">complete_example</span> ");
+        sb.append("<span class=\"brace\">{</span>\n");
+
+        for (var prop : allProps) {
+            if (prop.isDeprecated()) {
+                sb.append("    <span class=\"comment\">// ").append(prop.getName()).append(" (deprecated)</span>\n");
+                continue;
+            }
+            sb.append("    <span class=\"prop\">").append(prop.getName()).append("</span>");
+            sb.append(" ".repeat(maxLen - prop.getName().length()));
+            sb.append(" <span class=\"eq\">=</span> ");
+            sb.append(getHighlightedExampleValue(prop));
+            if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
+                sb.append("  <span class=\"comment\">// ").append(escapeHtml(truncate(prop.getDescription(), 40))).append("</span>");
+            }
+            sb.append("\n");
+        }
+
+        sb.append("<span class=\"brace\">}</span>");
+        return sb.toString();
+    }
+
+    private String truncate(String text, int maxLength) {
+        if (text == null || text.length() <= maxLength) return text;
+        return text.substring(0, maxLength - 3) + "...";
+    }
+
     private String generateHighlightedSchema(ResourceInfo resource) {
         var sb = new StringBuilder();
 
@@ -1365,6 +1505,16 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     }
                 });
             });
+
+            // Example tabs switching
+            function showExample(btn, type) {
+                // Hide all example content
+                document.querySelectorAll('.example-content').forEach(c => c.classList.remove('active'));
+                document.querySelectorAll('.example-tab').forEach(t => t.classList.remove('active'));
+                // Show selected
+                document.getElementById('example-' + type)?.classList.add('active');
+                btn.classList.add('active');
+            }
             """;
     }
 
@@ -1955,7 +2105,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 tr:hover { background: var(--bg-hover); }
 
-                .prop-name { color: var(--kite-primary); font-weight: 500; }
+                .prop-name { color: var(--text-primary); font-weight: 500; }
 
                 .prop-type {
                     color: var(--kite-accent);
@@ -2245,6 +2395,114 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     opacity: 1;
                     visibility: visible;
                     transform: translateX(-50%) translateY(0);
+                }
+
+                /* Example tabs */
+                .example-tabs {
+                    display: flex;
+                    gap: 0.5rem;
+                    margin-bottom: 1rem;
+                    border-bottom: 1px solid var(--border-color);
+                    padding-bottom: 0.5rem;
+                }
+
+                .example-tab {
+                    padding: 0.5rem 1rem;
+                    background: none;
+                    border: none;
+                    color: var(--text-secondary);
+                    font-size: 0.875rem;
+                    cursor: pointer;
+                    border-radius: 0.375rem 0.375rem 0 0;
+                    transition: all 0.15s;
+                }
+
+                .example-tab:hover {
+                    color: var(--text-primary);
+                    background: var(--bg-hover);
+                }
+
+                .example-tab.active {
+                    color: var(--kite-primary);
+                    background: rgba(124, 58, 237, 0.1);
+                    font-weight: 500;
+                }
+
+                .example-content {
+                    display: none;
+                }
+
+                .example-content.active {
+                    display: block;
+                }
+
+                /* Footer actions */
+                .footer-actions {
+                    display: flex;
+                    align-items: center;
+                    justify-content: space-between;
+                    margin-bottom: 0.75rem;
+                }
+
+                .share-buttons {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                }
+
+                .share-label {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                }
+
+                .share-btn {
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    width: 32px;
+                    height: 32px;
+                    border-radius: 0.375rem;
+                    text-decoration: none;
+                    font-weight: 600;
+                    font-size: 0.875rem;
+                    transition: all 0.15s;
+                }
+
+                .share-twitter {
+                    background: #1da1f2;
+                    color: white;
+                }
+
+                .share-twitter:hover {
+                    background: #0d8cd9;
+                }
+
+                .share-linkedin {
+                    background: #0a66c2;
+                    color: white;
+                }
+
+                .share-linkedin:hover {
+                    background: #084d92;
+                }
+
+                .report-issue {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    text-decoration: none;
+                    padding: 0.375rem 0.75rem;
+                    border: 1px solid var(--border-color);
+                    border-radius: 0.375rem;
+                    transition: all 0.15s;
+                }
+
+                .report-issue:hover {
+                    color: var(--kite-primary);
+                    border-color: var(--kite-primary);
+                }
+
+                .footer-date {
+                    color: var(--text-muted);
                 }
 
                 /* Print styles */
