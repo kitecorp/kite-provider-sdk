@@ -437,7 +437,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                             <span>in</span>
                                         </a>
                                     </div>
-                                    <a href="https://github.com/kitecorp/kite/issues/new?title=%s&body=%s" target="_blank" rel="noopener" class="report-issue">
+                                    <a href="https://github.com/kitecorp/kite-providers/issues/new?title=%s&body=%s" target="_blank" rel="noopener" class="report-issue">
                                         Report an issue
                                     </a>
                                 </div>
