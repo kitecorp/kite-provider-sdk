@@ -95,8 +95,12 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 "index.html"
         ));
 
+        // SoftwareApplication schema for the provider
+        sb.append(generateIndexJsonLd());
+
         sb.append("""
             <body>
+                <a href="#main-content" class="skip-link">Skip to main content</a>
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu">
                     <span class="hamburger-icon"></span>
                 </button>
@@ -109,7 +113,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         // Main content - welcome page
         sb.append("""
-                    <main class="content">
+                    <main id="main-content" class="content">
                         <article class="resource-content">
                             <h1>%s Provider Documentation</h1>
                             <p class="welcome-text">Infrastructure as code resources for %s. Select a resource from the navigation to view its documentation.</p>
@@ -245,6 +249,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         sb.append("""
             <body>
+                <a href="#main-content" class="skip-link">Skip to main content</a>
                 <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu">
                     <span class="hamburger-icon"></span>
                 </button>
@@ -257,7 +262,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         // Main content
         sb.append("""
-                    <main class="content">
+                    <main id="main-content" class="content">
                         <article class="resource-content" itemscope itemtype="https://schema.org/TechArticle">
                             <nav class="breadcrumbs" aria-label="Breadcrumb">
                                 <a href="index.html">Home</a>
@@ -348,6 +353,28 @@ public class HtmlDocGenerator extends DocGeneratorBase {
             sb.append("</section>\n");
         }
 
+        // Related resources in the same domain
+        var relatedResources = resources.stream()
+                .filter(r -> domain.equals(r.getDomain() != null ? r.getDomain() : "general"))
+                .filter(r -> !r.getName().equals(resource.getName()))
+                .limit(5)
+                .toList();
+
+        if (!relatedResources.isEmpty()) {
+            sb.append("<section id=\"related\" class=\"related-section\">\n");
+            sb.append("<h2>Related Resources</h2>\n");
+            sb.append("<p class=\"related-desc\">Other resources in the ").append(capitalize(domain)).append(" category:</p>\n");
+            sb.append("<div class=\"related-grid\">\n");
+            for (var related : relatedResources) {
+                sb.append("<a href=\"").append(related.getName()).append(".html\" class=\"related-card\">");
+                sb.append("<span class=\"related-icon\">").append(getDomainIcon(domain)).append("</span>");
+                sb.append("<span class=\"related-name\">").append(related.getName()).append("</span>");
+                sb.append("</a>\n");
+            }
+            sb.append("</div>\n");
+            sb.append("</section>\n");
+        }
+
         // Navigation to other resources
         var resourceIndex = resources.indexOf(resource);
         var prev = resourceIndex > 0 ? resources.get(resourceIndex - 1) : null;
@@ -394,6 +421,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         }
         if (!cloudProps.isEmpty()) {
             sb.append("<a href=\"#cloud-properties\">Cloud Properties</a>\n");
+        }
+        if (!relatedResources.isEmpty()) {
+            sb.append("<a href=\"#related\">Related Resources</a>\n");
         }
 
         sb.append("""
@@ -505,6 +535,10 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 <!-- Favicon -->
                 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪁</text></svg>">
 
+                <!-- Preload critical resources -->
+                <link rel="preload" href="styles.css" as="style">
+                <link rel="preload" href="scripts.js" as="script">
+
                 <!-- Stylesheet -->
                 <link rel="stylesheet" href="styles.css">
 
@@ -547,47 +581,183 @@ public class HtmlDocGenerator extends DocGeneratorBase {
     private String generateJsonLd(ResourceInfo resource) {
         var domain = resource.getDomain() != null ? resource.getDomain() : "general";
         var providerName = providerInfo.getName().toLowerCase();
+        var providerDisplay = capitalize(providerInfo.getName());
+        var resourceDesc = resource.getDescription() != null ? resource.getDescription() : "";
+        var importPath = "%s/%s/%s.kite".formatted(providerName, domain.toLowerCase(), resource.getName());
 
         return """
             <script type="application/ld+json">
-            {
-                "@context": "https://schema.org",
-                "@type": "TechArticle",
-                "headline": "%s Resource Documentation",
-                "description": "%s",
-                "author": {
-                    "@type": "Organization",
-                    "name": "Kite"
+            [
+                {
+                    "@context": "https://schema.org",
+                    "@type": "TechArticle",
+                    "headline": "%s Resource Documentation",
+                    "description": "%s",
+                    "author": {
+                        "@type": "Organization",
+                        "name": "Kite"
+                    },
+                    "publisher": {
+                        "@type": "Organization",
+                        "name": "Kite",
+                        "url": "https://kitelang.cloud"
+                    },
+                    "mainEntityOfPage": {
+                        "@type": "WebPage",
+                        "@id": "%s/%s/%s.html"
+                    },
+                    "about": {
+                        "@type": "SoftwareSourceCode",
+                        "name": "%s",
+                        "programmingLanguage": "Kite",
+                        "codeRepository": "https://github.com/kitelang/kite"
+                    },
+                    "articleSection": "%s",
+                    "keywords": ["kite", "%s", "%s", "infrastructure as code", "cloud"]
                 },
-                "publisher": {
-                    "@type": "Organization",
-                    "name": "Kite",
-                    "url": "https://kitelang.cloud"
+                {
+                    "@context": "https://schema.org",
+                    "@type": "BreadcrumbList",
+                    "itemListElement": [
+                        {
+                            "@type": "ListItem",
+                            "position": 1,
+                            "name": "%s Provider",
+                            "item": "%s/%s/"
+                        },
+                        {
+                            "@type": "ListItem",
+                            "position": 2,
+                            "name": "%s",
+                            "item": "%s/%s/%s.html"
+                        },
+                        {
+                            "@type": "ListItem",
+                            "position": 3,
+                            "name": "%s"
+                        }
+                    ]
                 },
-                "mainEntityOfPage": {
-                    "@type": "WebPage",
-                    "@id": "%s/%s/%s.html"
-                },
-                "about": {
-                    "@type": "SoftwareSourceCode",
-                    "name": "%s",
-                    "programmingLanguage": "Kite",
-                    "codeRepository": "https://github.com/kitelang/kite"
-                },
-                "articleSection": "%s",
-                "keywords": ["kite", "%s", "%s", "infrastructure as code", "cloud"]
-            }
+                {
+                    "@context": "https://schema.org",
+                    "@type": "FAQPage",
+                    "mainEntity": [
+                        {
+                            "@type": "Question",
+                            "name": "What is %s in Kite?",
+                            "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "%s is a %s resource in the %s provider. %s"
+                            }
+                        },
+                        {
+                            "@type": "Question",
+                            "name": "How do I import %s in Kite?",
+                            "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "Use: import %s from \\"%s\\""
+                            }
+                        },
+                        {
+                            "@type": "Question",
+                            "name": "What properties does %s have?",
+                            "acceptedAnswer": {
+                                "@type": "Answer",
+                                "text": "%s has %d configurable properties. See the Properties section for details."
+                            }
+                        }
+                    ]
+                }
+            ]
             </script>
             """.formatted(
+                // TechArticle
                 resource.getName(),
-                escapeHtml(resource.getDescription() != null ? resource.getDescription() : ""),
-                BASE_URL,
-                providerName,
-                resource.getName(),
+                escapeHtml(resourceDesc),
+                BASE_URL, providerName, resource.getName(),
                 resource.getName(),
                 capitalize(domain),
                 providerName,
-                resource.getName().toLowerCase()
+                resource.getName().toLowerCase(),
+                // BreadcrumbList
+                providerDisplay,
+                BASE_URL, providerName,
+                capitalize(domain),
+                BASE_URL, providerName, resources.stream()
+                    .filter(r -> domain.equals(r.getDomain() != null ? r.getDomain() : "general"))
+                    .findFirst().map(ResourceInfo::getName).orElse(resource.getName()),
+                resource.getName(),
+                // FAQPage Q1
+                resource.getName(),
+                resource.getName(), domain.toLowerCase(), providerDisplay,
+                resourceDesc.isEmpty() ? "Use it to manage your cloud infrastructure." : escapeHtml(resourceDesc),
+                // FAQPage Q2
+                resource.getName(),
+                resource.getName(), importPath,
+                // FAQPage Q3
+                resource.getName(),
+                resource.getName(),
+                resource.getProperties().stream().filter(p -> !p.isCloudManaged()).count()
+            );
+    }
+
+    private String generateIndexJsonLd() {
+        var providerName = providerInfo.getName().toLowerCase();
+        var providerDisplay = capitalize(providerInfo.getName());
+        var byDomain = groupByDomain();
+
+        return """
+            <script type="application/ld+json">
+            [
+                {
+                    "@context": "https://schema.org",
+                    "@type": "SoftwareApplication",
+                    "name": "Kite %s Provider",
+                    "applicationCategory": "DeveloperApplication",
+                    "applicationSubCategory": "Infrastructure as Code",
+                    "operatingSystem": "Cross-platform",
+                    "softwareVersion": "%s",
+                    "description": "Infrastructure as code provider for %s. Manage %d cloud resources with Kite.",
+                    "author": {
+                        "@type": "Organization",
+                        "name": "Kite",
+                        "url": "https://kitelang.cloud"
+                    },
+                    "offers": {
+                        "@type": "Offer",
+                        "price": "0",
+                        "priceCurrency": "USD"
+                    },
+                    "featureList": [
+                        "%d infrastructure resources",
+                        "%d resource categories",
+                        "Declarative configuration",
+                        "Multi-cloud support"
+                    ]
+                },
+                {
+                    "@context": "https://schema.org",
+                    "@type": "WebSite",
+                    "name": "Kite %s Provider Documentation",
+                    "url": "%s/%s/",
+                    "potentialAction": {
+                        "@type": "SearchAction",
+                        "target": "%s/%s/index.html?q={search_term_string}",
+                        "query-input": "required name=search_term_string"
+                    }
+                }
+            ]
+            </script>
+            """.formatted(
+                providerDisplay,
+                providerInfo.getVersion(),
+                providerDisplay,
+                resources.size(),
+                resources.size(),
+                byDomain.size(),
+                providerDisplay,
+                BASE_URL, providerName,
+                BASE_URL, providerName
             );
     }
 
@@ -1063,6 +1233,19 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
             document.querySelectorAll('section[id], h2[id]').forEach(section => {
                 observer.observe(section);
+            });
+
+            // Add anchor links to headings with IDs
+            document.querySelectorAll('h2[id], section[id] > h2').forEach(heading => {
+                const id = heading.id || heading.parentElement.id;
+                if (id) {
+                    const anchor = document.createElement('a');
+                    anchor.className = 'anchor-link';
+                    anchor.href = '#' + id;
+                    anchor.textContent = '#';
+                    anchor.setAttribute('aria-label', 'Link to this section');
+                    heading.insertBefore(anchor, heading.firstChild);
+                }
             });
 
             // Smooth scroll for anchor links
@@ -1737,6 +1920,88 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         flex-direction: column;
                         gap: 1rem;
                     }
+                }
+
+                /* Skip link for accessibility */
+                .skip-link {
+                    position: absolute;
+                    top: -40px;
+                    left: 0;
+                    background: var(--kite-primary);
+                    color: white;
+                    padding: 0.5rem 1rem;
+                    z-index: 300;
+                    text-decoration: none;
+                    border-radius: 0 0 0.25rem 0;
+                    transition: top 0.2s;
+                }
+
+                .skip-link:focus {
+                    top: 0;
+                }
+
+                /* Related resources section */
+                .related-section {
+                    margin-top: 2rem;
+                    padding-top: 1.5rem;
+                    border-top: 1px solid var(--border-color);
+                }
+
+                .related-desc {
+                    color: var(--text-secondary);
+                    font-size: 0.875rem;
+                    margin-bottom: 1rem;
+                }
+
+                .related-grid {
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.75rem;
+                }
+
+                .related-card {
+                    display: flex;
+                    align-items: center;
+                    gap: 0.5rem;
+                    padding: 0.5rem 1rem;
+                    background: var(--bg-hover);
+                    border: 1px solid var(--border-color);
+                    border-radius: 0.375rem;
+                    text-decoration: none;
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                    transition: all 0.15s;
+                }
+
+                .related-card:hover {
+                    border-color: var(--kite-primary);
+                    background: rgba(124, 58, 237, 0.05);
+                }
+
+                .related-icon { font-size: 1rem; }
+                .related-name { font-weight: 500; }
+
+                /* Anchor links on headings */
+                h2 {
+                    position: relative;
+                }
+
+                h2:hover .anchor-link {
+                    opacity: 1;
+                }
+
+                .anchor-link {
+                    position: absolute;
+                    left: -1.5rem;
+                    color: var(--text-muted);
+                    text-decoration: none;
+                    opacity: 0;
+                    transition: opacity 0.15s;
+                    font-weight: normal;
+                }
+
+                .anchor-link:hover {
+                    color: var(--kite-primary);
                 }
 
                 /* Print styles */
