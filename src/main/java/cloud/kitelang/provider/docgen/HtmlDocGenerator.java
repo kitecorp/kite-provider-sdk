@@ -508,7 +508,11 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                                     <span class="theme-icon-dark">🌙</span>
                                 </button>
                             </div>
-                            <span class="version">v%s</span>
+                            <div class="version-selector">
+                                <select id="version-select" onchange="switchVersion(this.value)" aria-label="Select version">
+                                    <option value="%s" selected>v%s</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="search-wrapper">
                             <div class="search-container">
@@ -521,7 +525,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                             <ul class="recently-list"></ul>
                         </div>
                         <nav class="nav-tree" aria-label="Resources navigation">
-            """.formatted(capitalize(providerInfo.getName()), providerInfo.getVersion()));
+            """.formatted(capitalize(providerInfo.getName()), providerInfo.getVersion(), providerInfo.getVersion()));
 
         for (var entry : byDomain.entrySet()) {
             var domain = entry.getKey();
@@ -1541,6 +1545,46 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     history.pushState(null, '', '#prop-' + propName);
                 });
             }
+
+            // Version switcher
+            function loadVersions() {
+                // Fetch versions.json from parent directory (docs root)
+                fetch('../versions.json')
+                    .then(res => res.ok ? res.json() : null)
+                    .catch(() => null)
+                    .then(data => {
+                        if (!data || !data.versions) return;
+
+                        const select = document.getElementById('version-select');
+                        if (!select) return;
+
+                        // Get current version from path
+                        const pathMatch = window.location.pathname.match(/\\/([^/]+)\\/html\\//);
+                        const currentVersion = pathMatch ? pathMatch[1] : null;
+
+                        // Clear and rebuild options
+                        select.innerHTML = '';
+                        data.versions
+                            .sort((a, b) => b.version.localeCompare(a.version, undefined, {numeric: true}))
+                            .forEach(v => {
+                                const opt = document.createElement('option');
+                                opt.value = v.path;
+                                opt.textContent = 'v' + v.version + (v.version === data.latest ? ' (latest)' : '');
+                                opt.selected = (v.path === currentVersion || v.version === currentVersion);
+                                select.appendChild(opt);
+                            });
+                    });
+            }
+
+            function switchVersion(versionPath) {
+                // Replace current version in path with new version
+                const currentPath = window.location.pathname;
+                const newPath = currentPath.replace(/\\/[^/]+\\/html\\//, '/' + versionPath + '/html/');
+                window.location.href = newPath;
+            }
+
+            // Load versions on page load
+            loadVersions();
             """;
     }
 
@@ -1710,12 +1754,31 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                     margin-bottom: 0.25rem;
                 }
 
-                .version {
+                .version-selector {
+                    margin-top: 0.25rem;
+                }
+
+                .version-selector select {
                     font-size: 0.75rem;
-                    color: var(--text-muted);
+                    color: var(--text-secondary);
                     background: var(--bg-hover);
-                    padding: 0.125rem 0.5rem;
-                    border-radius: 9999px;
+                    padding: 0.25rem 0.5rem;
+                    border-radius: 0.25rem;
+                    border: 1px solid var(--border-color);
+                    cursor: pointer;
+                    transition: all 0.15s;
+                    width: 100%;
+                }
+
+                .version-selector select:hover {
+                    border-color: var(--kite-primary);
+                    color: var(--text-primary);
+                }
+
+                .version-selector select:focus {
+                    outline: none;
+                    border-color: var(--kite-primary);
+                    box-shadow: 0 0 0 2px rgba(124, 58, 237, 0.2);
                 }
 
                 .header-top {
