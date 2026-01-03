@@ -400,20 +400,24 @@ public class HtmlDocGenerator extends DocGeneratorBase {
             sb.append("</section>\n");
         }
 
-        // Navigation to other resources
-        var resourceIndex = resources.indexOf(resource);
-        var prev = resourceIndex > 0 ? resources.get(resourceIndex - 1) : null;
-        var next = resourceIndex < resources.size() - 1 ? resources.get(resourceIndex + 1) : null;
+        // Navigation to other resources in the same category
+        var domainResources = resources.stream()
+                .filter(r -> domain.equals(r.getDomain() != null ? r.getDomain() : "general"))
+                .toList();
+        var domainIndex = domainResources.indexOf(resource);
+        var prev = domainIndex > 0 ? domainResources.get(domainIndex - 1) : null;
+        var next = domainIndex < domainResources.size() - 1 ? domainResources.get(domainIndex + 1) : null;
 
         sb.append("<nav class=\"resource-nav\" aria-label=\"Resource navigation\">\n");
         if (prev != null) {
-            sb.append("<a href=\"").append(prev.getName()).append(".html\" class=\"nav-prev\" rel=\"prev\">")
+            sb.append("<a href=\"").append(prev.getName()).append(".html\" class=\"nav-prev\" rel=\"prev\" title=\"Previous in ").append(capitalize(domain)).append("\">")
               .append("← ").append(prev.getName()).append("</a>\n");
         } else {
             sb.append("<span class=\"nav-placeholder\"></span>\n");
         }
+        sb.append("<span class=\"nav-category-label\">").append(capitalize(domain)).append("</span>\n");
         if (next != null) {
-            sb.append("<a href=\"").append(next.getName()).append(".html\" class=\"nav-next\" rel=\"next\">")
+            sb.append("<a href=\"").append(next.getName()).append(".html\" class=\"nav-next\" rel=\"next\" title=\"Next in ").append(capitalize(domain)).append("\">")
               .append(next.getName()).append(" →</a>\n");
         } else {
             sb.append("<span class=\"nav-placeholder\"></span>\n");
@@ -2180,6 +2184,13 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 .nav-prev:hover, .nav-next:hover {
                     border-color: var(--kite-primary);
                     color: var(--kite-primary);
+                }
+
+                .nav-category-label {
+                    font-size: 0.75rem;
+                    color: var(--text-muted);
+                    text-transform: uppercase;
+                    letter-spacing: 0.05em;
                 }
 
                 .nav-placeholder { width: 120px; }
