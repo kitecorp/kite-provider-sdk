@@ -1689,8 +1689,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
             // Version switcher
             function loadVersions() {
-                // Fetch versions.json from parent directory (docs root)
-                fetch('../versions.json')
+                // Fetch versions.json from docs root (two levels up: html -> version -> docs)
+                fetch('../../versions.json')
                     .then(res => res.ok ? res.json() : null)
                     .catch(() => null)
                     .then(data => {
