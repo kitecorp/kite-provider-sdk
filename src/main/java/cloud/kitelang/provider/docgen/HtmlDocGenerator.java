@@ -1198,7 +1198,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         for (var prop : properties) {
             sb.append("<tr id=\"prop-").append(prop.getName()).append("\">\n");
-            sb.append("  <td><code class=\"prop-name\">").append(prop.getName()).append("</code>");
+            sb.append("  <td><code class=\"prop-name\" onclick=\"copyPropLink('").append(prop.getName()).append("')\" title=\"Click to copy link\">").append(prop.getName()).append("<span class=\"link-icon\">#</span></code>");
             if (prop.isDeprecated()) {
                 sb.append(" <span class=\"badge badge-deprecated\">deprecated</span>");
             }
@@ -1530,6 +1530,16 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 // Show selected
                 document.getElementById('example-' + type)?.classList.add('active');
                 btn.classList.add('active');
+            }
+
+            // Copy property deep link
+            function copyPropLink(propName) {
+                const url = window.location.origin + window.location.pathname + '#prop-' + propName;
+                navigator.clipboard.writeText(url).then(() => {
+                    showToast('Link copied: #prop-' + propName);
+                    // Update URL without reload
+                    history.pushState(null, '', '#prop-' + propName);
+                });
             }
             """;
     }
@@ -2121,7 +2131,29 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 tr:hover { background: var(--bg-hover); }
 
-                .prop-name { color: var(--text-primary); font-weight: 500; }
+                .prop-name {
+                    color: var(--text-primary);
+                    font-weight: 500;
+                    cursor: pointer;
+                    position: relative;
+                    transition: color 0.15s;
+                }
+
+                .prop-name:hover {
+                    color: var(--kite-primary);
+                }
+
+                .prop-name .link-icon {
+                    opacity: 0;
+                    margin-left: 0.25rem;
+                    color: var(--text-muted);
+                    font-size: 0.75em;
+                    transition: opacity 0.15s;
+                }
+
+                .prop-name:hover .link-icon {
+                    opacity: 1;
+                }
 
                 .prop-type {
                     color: var(--kite-accent);
