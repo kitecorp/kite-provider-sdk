@@ -13,6 +13,7 @@ import java.nio.file.Path;
  * java -cp ... cloud.kitelang.provider.docgen.DocGeneratorCli \
  *     --provider com.example.MyProvider \
  *     --output docs \
+ *     --version 0.1.0 \
  *     --format html,markdown,schemas
  * </pre>
  */
@@ -21,6 +22,7 @@ public class DocGeneratorCli {
     public static void main(String[] args) throws Exception {
         String providerClass = null;
         String outputDir = "docs";
+        String version = null;
         String formats = "html,markdown,schemas";
 
         // Parse arguments
@@ -28,6 +30,7 @@ public class DocGeneratorCli {
             switch (args[i]) {
                 case "--provider", "-p" -> providerClass = args[++i];
                 case "--output", "-o" -> outputDir = args[++i];
+                case "--version", "-v" -> version = args[++i];
                 case "--format", "-f" -> formats = args[++i];
                 case "--help", "-h" -> {
                     printHelp();
@@ -59,20 +62,32 @@ public class DocGeneratorCli {
         for (var format : formats.split(",")) {
             switch (format.trim().toLowerCase()) {
                 case "html" -> {
-                    generator.generateHtml(outputPath.resolve("html"));
-                    System.out.println("Generated HTML documentation in " + outputPath.resolve("html"));
+                    if (version != null) {
+                        // Versioned: non-versioned index at root, resources in version subdirectory
+                        generator.generateVersionedHtml(outputPath, version);
+                        System.out.println("Generated versioned HTML documentation:");
+                        System.out.println("  - Shared assets at " + outputPath);
+                        System.out.println("  - Resource pages at " + outputPath.resolve(version));
+                    } else {
+                        // Legacy: all files in html/ subdirectory
+                        generator.generateHtml(outputPath.resolve("html"));
+                        System.out.println("Generated HTML documentation in " + outputPath.resolve("html"));
+                    }
                 }
                 case "markdown", "md" -> {
-                    generator.generateMarkdown(outputPath.resolve("markdown"));
-                    System.out.println("Generated Markdown documentation in " + outputPath.resolve("markdown"));
+                    var mdPath = version != null ? outputPath.resolve(version).resolve("markdown") : outputPath.resolve("markdown");
+                    generator.generateMarkdown(mdPath);
+                    System.out.println("Generated Markdown documentation in " + mdPath);
                 }
                 case "combined-markdown", "combined-md" -> {
-                    generator.generateCombinedMarkdown(outputPath.resolve("REFERENCE.md"));
-                    System.out.println("Generated combined Markdown in " + outputPath.resolve("REFERENCE.md"));
+                    var refPath = version != null ? outputPath.resolve(version).resolve("REFERENCE.md") : outputPath.resolve("REFERENCE.md");
+                    generator.generateCombinedMarkdown(refPath);
+                    System.out.println("Generated combined Markdown in " + refPath);
                 }
                 case "schemas", "kite" -> {
-                    generator.generateKite(outputPath.resolve("schemas"));
-                    System.out.println("Generated Kite schemas in " + outputPath.resolve("schemas"));
+                    var schemaPath = version != null ? outputPath.resolve(version).resolve("schemas") : outputPath.resolve("schemas");
+                    generator.generateKite(schemaPath);
+                    System.out.println("Generated Kite schemas in " + schemaPath);
                 }
                 default -> System.err.println("Unknown format: " + format);
             }
@@ -91,6 +106,9 @@ public class DocGeneratorCli {
             Options:
               --provider, -p <class>   Provider class name (required)
               --output, -o <dir>       Output directory (default: docs)
+              --version, -v <version>  Provider version for versioned docs structure
+                                       When set, creates non-versioned index.html at root
+                                       with resource pages in {version}/ subdirectory
               --format, -f <formats>   Comma-separated formats (default: html,markdown,schemas)
                                        - html: Interactive HTML pages
                                        - markdown: Markdown files
@@ -98,10 +116,17 @@ public class DocGeneratorCli {
                                        - schemas: Kite schema files (.kite)
               --help, -h               Show this help message
 
-            Example:
+            Example (versioned):
               java -cp app.jar cloud.kitelang.provider.docgen.DocGeneratorCli \\
                   --provider cloud.kitelang.provider.aws.AwsProvider \\
                   --output docs \\
+                  --version 0.1.0 \\
+                  --format html,markdown,schemas
+
+            Example (legacy):
+              java -cp app.jar cloud.kitelang.provider.docgen.DocGeneratorCli \\
+                  --provider cloud.kitelang.provider.aws.AwsProvider \\
+                  --output docs/0.1.0 \\
                   --format html,markdown,schemas
             """);
     }

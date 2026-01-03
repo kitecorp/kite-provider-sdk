@@ -46,10 +46,61 @@ public class HtmlDocGenerator extends DocGeneratorBase {
     }
 
     /**
-     * Generates HTML documentation files.
+     * Generates HTML documentation with versioned structure.
+     *
+     * <p>Output structure:</p>
+     * <pre>
+     * docsRoot/
+     * ├── index.html       <- NOT versioned (dynamic, loads from selected version)
+     * ├── styles.css       <- NOT versioned (shared)
+     * ├── scripts.js       <- NOT versioned (shared)
+     * ├── versions.json    <- NOT versioned (version list)
+     * ├── sitemap.xml      <- NOT versioned
+     * ├── robots.txt       <- NOT versioned
+     * └── {version}/
+     *     ├── manifest.json
+     *     ├── html/
+     *     │   ├── Vpc.html
+     *     │   └── ...
+     *     ├── markdown/
+     *     └── schemas/
+     * </pre>
+     *
+     * @param docsRoot the root docs directory (e.g., aws/docs/)
+     * @param version  the current version being generated
+     */
+    public void generateVersioned(Path docsRoot, String version) throws IOException {
+        Files.createDirectories(docsRoot);
+        var versionDir = docsRoot.resolve(version);
+        var htmlDir = versionDir.resolve("html");
+        Files.createDirectories(htmlDir);
+
+        // Generate shared assets at docs root (NOT versioned)
+        Files.writeString(docsRoot.resolve("styles.css"), generateStyles());
+        Files.writeString(docsRoot.resolve("scripts.js"), generateScripts());
+        Files.writeString(docsRoot.resolve("index.html"), generateVersionedIndex());
+        Files.writeString(docsRoot.resolve("sitemap.xml"), generateSitemap());
+        Files.writeString(docsRoot.resolve("robots.txt"), generateRobotsTxt());
+        Files.writeString(docsRoot.resolve("feed.xml"), generateRssFeed());
+        Files.writeString(docsRoot.resolve("opensearch.xml"), generateOpenSearch());
+
+        // Generate manifest at version root (for changelog diffing)
+        Files.writeString(versionDir.resolve("manifest.json"), generateManifest());
+
+        // Generate resource pages in html/ subdirectory with ../../ prefix for assets
+        for (var resource : resources) {
+            var resourceHtml = generateVersionedResourcePage(resource);
+            Files.writeString(htmlDir.resolve(resource.getName() + ".html"), resourceHtml);
+        }
+    }
+
+    /**
+     * Generates HTML documentation files (legacy - all in one directory).
      *
      * @param outputDir the directory to write files to
+     * @deprecated Use {@link #generateVersioned(Path, String)} for versioned docs
      */
+    @Deprecated
     public void generate(Path outputDir) throws IOException {
         Files.createDirectories(outputDir);
 
@@ -87,6 +138,258 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         // Generate changelog.html (loads changelog.json dynamically)
         Files.writeString(outputDir.resolve("changelog.html"), generateChangelogPage());
+    }
+
+    /**
+     * Generates a dynamic index.html that loads resources based on selected version.
+     * Uses the same HTML structure as the legacy generateIndex() for CSS compatibility.
+     */
+    private String generateVersionedIndex() {
+        var sb = new StringBuilder();
+        var providerName = providerInfo.getName();
+        var displayName = capitalize(providerName);
+        var description = "Complete documentation for " + displayName +
+                " provider resources. Learn how to configure and manage infrastructure resources with Kite.";
+
+        sb.append(generateHtmlHead(
+                displayName + " Provider Documentation | Kite",
+                description,
+                "index.html"
+        ));
+
+        sb.append("""
+            <body>
+                <a href="#main-content" class="skip-link">Skip to main content</a>
+                <button class="mobile-menu-btn" onclick="toggleMobileMenu()" aria-label="Toggle navigation menu">
+                    <span class="hamburger-icon"></span>
+                </button>
+                <div class="mobile-overlay" onclick="toggleMobileMenu()"></div>
+                <div class="layout">
+                    <aside class="sidebar-left">
+                        <div class="sidebar-header">
+                            <div class="header-top">
+                                <a href="index.html" class="logo-link">
+                                    <h1>🪁 %s</h1>
+                                </a>
+                                <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark/light mode" title="Toggle theme">
+                                    <span class="theme-icon-light">☀️</span>
+                                    <span class="theme-icon-dark">🌙</span>
+                                </button>
+                            </div>
+                            <div class="version-selector">
+                                <select id="version-select" onchange="switchVersion(this.value)" aria-label="Select version">
+                                    <option>Loading...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="search-wrapper">
+                            <div class="search-container">
+                                <input type="search" id="search" placeholder="Search resources..." class="search-input" aria-label="Search resources" oninput="filterResources(this.value)">
+                                <kbd class="search-hint">/</kbd>
+                            </div>
+                        </div>
+                        <nav id="nav-tree" class="nav-tree" aria-label="Resources navigation">
+                            <div class="loading">Loading resources...</div>
+                        </nav>
+                    </aside>
+                    <main id="main-content" class="content">
+                        <article class="resource-content">
+                            <h1>%s Provider Documentation</h1>
+                            <p class="welcome-text">Infrastructure as code resources for %s. Select a resource from the navigation to view its documentation.</p>
+
+                            <div class="quick-stats">
+                                <div class="stat-card">
+                                    <span class="stat-value" id="resource-count">-</span>
+                                    <span class="stat-label">Resources</span>
+                                </div>
+                                <div class="stat-card">
+                                    <span class="stat-value" id="category-count">-</span>
+                                    <span class="stat-label">Categories</span>
+                                </div>
+                            </div>
+
+                            <h2 id="categories">Categories</h2>
+                            <div id="category-grid" class="category-grid">
+                                <div class="loading">Loading...</div>
+                            </div>
+
+                            <h2 id="all-resources">All Resources</h2>
+                            <div id="resource-grid" class="resource-grid">
+                                <div class="loading">Loading...</div>
+                            </div>
+                        </article>
+                    </main>
+                    <aside class="sidebar-right">
+                        <div class="toc-header">On this page</div>
+                        <nav class="toc">
+                            <a href="#categories">Categories</a>
+                            <a href="#all-resources">All Resources</a>
+                        </nav>
+                    </aside>
+                </div>
+                <button class="back-to-top" onclick="scrollToTop()" aria-label="Back to top" title="Back to top">↑</button>
+                <div id="toast" class="toast" role="alert" aria-live="polite"></div>
+                <script>
+                    let currentVersion = null;
+
+                    async function initVersionedIndex() {
+                        try {
+                            const res = await fetch('versions.json');
+                            const data = await res.json();
+                            const versions = data.versions || [];
+                            currentVersion = data.latest || (versions[0] && versions[0].path);
+
+                            const select = document.getElementById('version-select');
+                            select.innerHTML = versions.map(v =>
+                                `<option value="${v.path}" ${v.version === data.latest ? 'selected' : ''}>v${v.version}${v.version === data.latest ? ' (latest)' : ''}</option>`
+                            ).join('');
+
+                            await loadResources(currentVersion);
+                        } catch (e) {
+                            console.error('Failed to load versions', e);
+                            document.getElementById('nav-tree').innerHTML = '<div class="error">Failed to load</div>';
+                        }
+                    }
+
+                    async function loadResources(version) {
+                        try {
+                            const res = await fetch(version + '/manifest.json');
+                            const data = await res.json();
+                            const resourcesObj = data.resources || {};
+                            const resources = Object.entries(resourcesObj).map(([name, info]) => ({
+                                name,
+                                domain: info.domain || 'general',
+                                propertyCount: Object.keys(info.properties || {}).length
+                            }));
+
+                            renderNavigation(resources, version);
+                            renderCategoryGrid(resources, version);
+                            renderResourceGrid(resources, version);
+                            updateStats(resources);
+                        } catch (e) {
+                            console.error('Failed to load resources', e);
+                        }
+                    }
+
+                    function renderNavigation(resources, version) {
+                        const byDomain = groupByDomain(resources);
+                        let html = '';
+                        for (const [domain, items] of Object.entries(byDomain)) {
+                            html += `<div class="nav-category" data-domain="${domain}">
+                                <div class="category-header" onclick="toggleCategory(this)" role="button" aria-expanded="true">
+                                    <span class="category-icon">${getDomainIcon(domain)}</span>
+                                    <span class="category-name">${capitalize(domain)}</span>
+                                    <span class="category-count">${items.length}</span>
+                                    <span class="category-arrow">▾</span>
+                                </div>
+                                <ul class="category-items">
+                                    ${items.map(r => `<li class="nav-item" data-name="${r.name.toLowerCase()}"><a href="${version}/html/${r.name}.html">${r.name}</a></li>`).join('')}
+                                </ul>
+                            </div>`;
+                        }
+                        document.getElementById('nav-tree').innerHTML = html;
+                    }
+
+                    function renderCategoryGrid(resources, version) {
+                        const byDomain = groupByDomain(resources);
+                        let html = '';
+                        for (const [domain, items] of Object.entries(byDomain)) {
+                            const firstResource = items[0];
+                            html += `<a href="${version}/html/${firstResource.name}.html" class="category-card">
+                                <span class="card-icon">${getDomainIcon(domain)}</span>
+                                <span class="card-name">${capitalize(domain)}</span>
+                                <span class="card-count">${items.length} resources</span>
+                            </a>`;
+                        }
+                        document.getElementById('category-grid').innerHTML = html;
+                    }
+
+                    function renderResourceGrid(resources, version) {
+                        let html = '';
+                        for (const r of resources) {
+                            html += `<a href="${version}/html/${r.name}.html" class="resource-card">
+                                <span class="resource-icon">${getDomainIcon(r.domain)}</span>
+                                <span class="resource-name">${r.name}</span>
+                                <span class="resource-props">${r.propertyCount} properties</span>
+                            </a>`;
+                        }
+                        document.getElementById('resource-grid').innerHTML = html;
+                    }
+
+                    function updateStats(resources) {
+                        const domains = new Set(resources.map(r => r.domain));
+                        document.getElementById('resource-count').textContent = resources.length;
+                        document.getElementById('category-count').textContent = domains.size;
+                    }
+
+                    function switchVersion(version) {
+                        currentVersion = version;
+                        loadResources(version);
+                    }
+
+                    function filterResources(query) {
+                        const q = query.toLowerCase();
+                        document.querySelectorAll('.nav-item').forEach(item => {
+                            const name = item.dataset.name || item.textContent.toLowerCase();
+                            item.style.display = name.includes(q) ? '' : 'none';
+                        });
+                        document.querySelectorAll('.resource-card').forEach(card => {
+                            card.style.display = card.textContent.toLowerCase().includes(q) ? '' : 'none';
+                        });
+                    }
+
+                    function groupByDomain(resources) {
+                        const groups = {};
+                        resources.forEach(r => {
+                            if (!groups[r.domain]) groups[r.domain] = [];
+                            groups[r.domain].push(r);
+                        });
+                        return groups;
+                    }
+
+                    function getDomainIcon(domain) {
+                        const icons = {networking:'🌐',compute:'💻',storage:'💾',database:'🗄️',dns:'📍',loadbalancing:'⚖️',security:'🔒',core:'⚙️'};
+                        return icons[domain] || '📦';
+                    }
+
+                    function capitalize(s) {
+                        return s.charAt(0).toUpperCase() + s.slice(1);
+                    }
+
+                    initVersionedIndex();
+                </script>
+            </body>
+            </html>
+            """.formatted(displayName, displayName, displayName));
+
+        return sb.toString();
+    }
+
+    /**
+     * Generates a resource page for versioned structure.
+     * Reuses the legacy generateResourcePage() and adjusts paths for the versioned structure.
+     * Resource pages are at {version}/html/{Resource}.html, so root assets need ../../ prefix.
+     */
+    private String generateVersionedResourcePage(ResourceInfo resource) {
+        // Generate using the legacy method (which has the correct HTML structure)
+        var html = generateResourcePage(resource);
+
+        // Adjust paths for versioned structure:
+        // - Root assets (styles.css, scripts.js, feed.xml, etc.) need ../../ prefix
+        // - index.html needs ../../ prefix
+        // - Resource links (.html files) stay as-is (same directory)
+        html = html.replace("href=\"styles.css\"", "href=\"../../styles.css\"");
+        html = html.replace("href=\"scripts.js\"", "href=\"../../scripts.js\"");
+        html = html.replace("src=\"scripts.js\"", "src=\"../../scripts.js\"");
+        html = html.replace("href=\"feed.xml\"", "href=\"../../feed.xml\"");
+        html = html.replace("href=\"opensearch.xml\"", "href=\"../../opensearch.xml\"");
+        html = html.replace("href=\"index.html\"", "href=\"../../index.html\"");
+        html = html.replace("href=\"changelog.html\"", "href=\"../../changelog.html\"");
+
+        // Fix manifest.json path (it's in parent directory, not same directory)
+        html = html.replace("fetch('manifest.json')", "fetch('../manifest.json')");
+
+        return html;
     }
 
     private String generateChangelogPage() {
@@ -1870,7 +2173,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 }
 
                 /* Left Sidebar */
-                .sidebar-left {
+                .sidebar-left, .sidebar {
                     background: var(--bg-sidebar);
                     border-right: 1px solid var(--border-color);
                     position: sticky;
@@ -2499,7 +2802,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         display: block;
                     }
 
-                    .sidebar-left {
+                    .sidebar-left, .sidebar {
                         position: fixed;
                         left: -100%;
                         width: 100%;
@@ -2508,7 +2811,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                         transition: left 0.3s;
                     }
 
-                    .sidebar-left.open { left: 0; }
+                    .sidebar-left.open, .sidebar.open { left: 0; }
                     .layout { grid-template-columns: 1fr; }
                     .content { padding: 4rem 1.5rem 1.5rem; }
 
@@ -2839,6 +3142,102 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
                 .loading {
                     color: var(--text-muted);
+                    padding: 2rem;
+                    text-align: center;
+                }
+
+                .error {
+                    color: var(--kite-error);
+                    padding: 1rem;
+                }
+
+                /* Versioned index styles */
+                .sidebar-controls {
+                    padding: 0.75rem 1rem;
+                    border-bottom: 1px solid var(--border-color);
+                }
+
+                .sidebar-content {
+                    flex: 1;
+                    overflow-y: auto;
+                    padding: 0.5rem 0;
+                }
+
+                .version-select {
+                    width: 100%;
+                    padding: 0.5rem;
+                    border: 1px solid var(--border-color);
+                    border-radius: 0.375rem;
+                    background: var(--bg-content);
+                    color: var(--text-primary);
+                    font-size: 0.875rem;
+                }
+
+                .nav-section {
+                    padding: 0.5rem 0;
+                }
+
+                .nav-group {
+                    margin-bottom: 0.5rem;
+                }
+
+                .nav-group-header {
+                    padding: 0.5rem 1rem;
+                    font-size: 0.75rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                    color: var(--text-muted);
+                    letter-spacing: 0.05em;
+                }
+
+                a.nav-item {
+                    display: block;
+                    padding: 0.375rem 1rem 0.375rem 1.5rem;
+                    color: var(--text-secondary);
+                    text-decoration: none;
+                    font-size: 0.875rem;
+                    transition: all 0.15s;
+                }
+
+                a.nav-item:hover {
+                    background: var(--bg-hover);
+                    color: var(--text-primary);
+                }
+
+                .index-header {
+                    padding: 2rem;
+                    border-bottom: 1px solid var(--border-color);
+                }
+
+                .index-header h1 {
+                    font-size: 1.75rem;
+                    margin-bottom: 0.5rem;
+                }
+
+                .version-badge {
+                    color: var(--text-muted);
+                    font-size: 0.875rem;
+                }
+
+                .index-content {
+                    padding: 2rem;
+                }
+
+                .lead {
+                    font-size: 1.1rem;
+                    color: var(--text-secondary);
+                    margin-bottom: 2rem;
+                }
+
+                .domain-section {
+                    margin-bottom: 2rem;
+                }
+
+                .domain-section h2 {
+                    font-size: 1.25rem;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.5rem;
+                    border-bottom: 1px solid var(--border-color);
                 }
 
                 .whats-new-link {

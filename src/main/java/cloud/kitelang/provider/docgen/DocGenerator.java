@@ -59,12 +59,36 @@ public class DocGenerator {
     }
 
     /**
-     * Generates HTML documentation.
+     * Generates HTML documentation (legacy flat structure).
      *
      * @param outputDir the directory to write files to
+     * @deprecated Use {@link #generateVersionedHtml(Path, String)} for versioned docs
      */
+    @Deprecated
     public void generateHtml(Path outputDir) throws IOException {
         htmlGenerator.generate(outputDir);
+    }
+
+    /**
+     * Generates versioned HTML documentation with non-versioned index.
+     * <p>
+     * Structure:
+     * <pre>
+     * docsRoot/
+     * ├── index.html      (non-versioned, dynamic)
+     * ├── styles.css      (non-versioned)
+     * ├── scripts.js      (non-versioned)
+     * ├── versions.json   (list of all versions)
+     * └── {version}/
+     *     ├── manifest.json
+     *     └── {Resource}.html
+     * </pre>
+     *
+     * @param docsRoot the root docs directory (e.g., aws/docs/)
+     * @param version  the current version being generated
+     */
+    public void generateVersionedHtml(Path docsRoot, String version) throws IOException {
+        htmlGenerator.generateVersioned(docsRoot, version);
     }
 
     /**
