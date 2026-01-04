@@ -346,63 +346,45 @@ public class HtmlDocGenerator extends DocGeneratorBase {
     }
 
     private String generatePropertiesTable(List<PropertyInfo> properties, boolean isCloudSection) {
-        var sb = new StringBuilder();
+        var rowTemplate = readResource(isCloudSection
+                ? "/docgen/templates/properties-row-cloud.html"
+                : "/docgen/templates/properties-row-user.html");
+        var tableTemplate = readResource(isCloudSection
+                ? "/docgen/templates/properties-table-cloud.html"
+                : "/docgen/templates/properties-table-user.html");
 
-        if (isCloudSection) {
-            sb.append("<div class=\"table-wrapper\"><table><thead><tr>");
-            sb.append("<th scope=\"col\">Name</th><th scope=\"col\">Type</th><th scope=\"col\">Description</th>");
-            sb.append("</tr></thead><tbody>\n");
-        } else {
-            sb.append("<div class=\"table-wrapper\"><table><thead><tr>");
-            sb.append("<th scope=\"col\">Name</th><th scope=\"col\">Type</th><th scope=\"col\">Default</th>");
-            sb.append("<th scope=\"col\">Required</th><th scope=\"col\">Description</th>");
-            sb.append("</tr></thead><tbody>\n");
-        }
-
+        var rows = new StringBuilder();
         for (var prop : properties) {
-            sb.append("<tr id=\"prop-").append(prop.getName()).append("\">\n");
-            sb.append("  <td><code class=\"prop-name\" onclick=\"copyPropLink('").append(prop.getName())
-              .append("')\" title=\"Click to copy link\">").append(prop.getName()).append("<span class=\"link-icon\">#</span></code>");
-            if (prop.isDeprecated()) {
-                sb.append(" <span class=\"badge badge-deprecated\">deprecated</span>");
-            }
-            sb.append("</td>\n");
-            sb.append("  <td><code class=\"prop-type\">").append(prop.getType()).append("</code></td>\n");
-
-            if (!isCloudSection) {
-                sb.append("  <td>");
-                if (prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()) {
-                    sb.append("<code class=\"default-value\">").append(escapeHtml(prop.getDefaultValue())).append("</code>");
-                } else {
-                    sb.append("<span class=\"no-value\">—</span>");
-                }
-                sb.append("</td>\n");
-
-                sb.append("  <td>");
-                if (prop.isRequired()) {
-                    sb.append("<span class=\"badge badge-required\">Yes</span>");
-                } else {
-                    sb.append("<span class=\"badge badge-optional\">No</span>");
-                }
-                sb.append("</td>\n");
-            }
-
-            sb.append("  <td>");
-            if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
-                sb.append(escapeHtml(prop.getDescription()));
-            }
+            var deprecatedBadge = prop.isDeprecated()
+                    ? " <span class=\"badge badge-deprecated\">deprecated</span>" : "";
+            var defaultValue = prop.getDefaultValue() != null && !prop.getDefaultValue().isEmpty()
+                    ? "<code class=\"default-value\">" + escapeHtml(prop.getDefaultValue()) + "</code>"
+                    : "<span class=\"no-value\">—</span>";
+            var requiredBadge = prop.isRequired()
+                    ? "<span class=\"badge badge-required\">Yes</span>"
+                    : "<span class=\"badge badge-optional\">No</span>";
+            var description = prop.getDescription() != null ? escapeHtml(prop.getDescription()) : "";
+            var validValues = "";
             if (prop.getValidValues() != null && !prop.getValidValues().isEmpty()) {
-                sb.append("<br><span class=\"valid-values-label\">Valid values: </span>");
-                sb.append(prop.getValidValues().stream()
-                        .map(v -> "<code class=\"valid-value\">" + escapeHtml(v) + "</code>")
-                        .reduce((a, b) -> a + " " + b)
-                        .orElse(""));
+                validValues = "<br><span class=\"valid-values-label\">Valid values: </span>" +
+                        prop.getValidValues().stream()
+                                .map(v -> "<code class=\"valid-value\">" + escapeHtml(v) + "</code>")
+                                .reduce((a, b) -> a + " " + b)
+                                .orElse("");
             }
-            sb.append("</td>\n</tr>\n");
+
+            rows.append(render(rowTemplate, Map.of(
+                    "NAME", prop.getName(),
+                    "TYPE", prop.getType(),
+                    "DEPRECATED_BADGE", deprecatedBadge,
+                    "DEFAULT", defaultValue,
+                    "REQUIRED_BADGE", requiredBadge,
+                    "DESCRIPTION", description,
+                    "VALID_VALUES", validValues
+            )));
         }
 
-        sb.append("</tbody></table></div>\n");
-        return sb.toString();
+        return render(tableTemplate, Map.of("ROWS", rows.toString()));
     }
 
     private List<ResourceInfo> getRelatedResources(ResourceInfo resource, String domain) {
