@@ -110,9 +110,15 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         var displayName = capitalize(providerInfo.getName());
         var description = "Complete documentation for " + displayName +
                 " provider resources. Learn how to configure and manage infrastructure resources with Kite.";
+        var exampleResource = resources.isEmpty() ? "ResourceType" : resources.get(0).getName();
 
         var head = generateHtmlHead(displayName + " Provider Documentation | Kite", description, "index.html");
-        var body = renderTemplate("/docgen/templates/index.html", Map.of("PROVIDER_NAME", displayName));
+        var body = renderTemplate("/docgen/templates/index.html", Map.of(
+                "PROVIDER_NAME", displayName,
+                "PROVIDER_NAME_LOWER", providerInfo.getName().toLowerCase(),
+                "VERSION", providerInfo.getVersion(),
+                "EXAMPLE_RESOURCE", exampleResource
+        ));
 
         return head + body;
     }
