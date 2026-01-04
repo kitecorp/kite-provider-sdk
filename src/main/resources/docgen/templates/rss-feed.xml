@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+    <channel>
+        <title>{{PROVIDER_DISPLAY}} Provider Resources | Kite</title>
+        <description>Infrastructure as code resources for {{PROVIDER_DISPLAY}} provider. Stay updated with the latest resource documentation.</description>
+        <link>{{BASE_URL}}/{{PROVIDER}}/</link>
+        <atom:link href="{{BASE_URL}}/{{PROVIDER}}/feed.xml" rel="self" type="application/rss+xml"/>
+        <language>en-us</language>
+        <lastBuildDate>{{BUILD_DATE}}</lastBuildDate>
+        <generator>Kite Documentation Generator</generator>
+{{ITEMS}}
+    </channel>
+</rss>

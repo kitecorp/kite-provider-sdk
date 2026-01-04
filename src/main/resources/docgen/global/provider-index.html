@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{PROVIDER_DISPLAY}} Provider - Kite Documentation</title>
+    <meta name="description" content="Documentation for the Kite {{PROVIDER_DISPLAY}} provider - manage {{PROVIDER_DISPLAY}} infrastructure as code.">
+    <link rel="stylesheet" href="../styles.css">
+    <script src="../scripts.js" defer></script>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🪁</text></svg>">
+</head>
+<body>
+    <div class="layout">
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <a href="../index.html" class="logo">🪁 Kite Providers</a>
+                <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
+            </div>
+            <div class="sidebar-controls">
+                <select id="version-select" class="version-select" onchange="changeVersion(this.value)">
+                    <option>Loading...</option>
+                </select>
+            </div>
+            <div class="sidebar-search">
+                <input type="text" id="resource-search" placeholder="Search resources..." oninput="filterResources(this.value)">
+            </div>
+            <div class="sidebar-content">
+                <div id="resource-list" class="nav-section">
+                    <div class="loading">Loading resources...</div>
+                </div>
+            </div>
+        </nav>
+        <main class="content">
+            <div class="content-header">
+                <nav class="breadcrumb">
+                    <a href="../index.html">Providers</a> / <span>{{PROVIDER_DISPLAY}}</span>
+                </nav>
+                <h1>{{PROVIDER_DISPLAY}} Provider</h1>
+            </div>
+            <div class="content-body">
+                <p class="lead">Infrastructure as code resources for {{PROVIDER_DISPLAY}}.</p>
+
+                <section id="resources-overview">
+                    <h2>Resources</h2>
+                    <div id="resource-cards" class="resource-cards">
+                        <div class="loading">Loading resources...</div>
+                    </div>
+                </section>
+
+                <section id="changelog-section" style="display:none;">
+                    <h2>What's New</h2>
+                    <div id="changelog-content"></div>
+                </section>
+            </div>
+        </main>
+    </div>
+    <script>
+        const providerName = '{{PROVIDER_NAME}}';
+        let currentVersion = null;
+        let versions = [];
+
+        document.addEventListener('DOMContentLoaded', init);
+
+        async function init() {
+            await loadVersions();
+            if (versions.length > 0) {
+                currentVersion = versions[0];
+                await loadResources(currentVersion);
+                await loadChangelog(currentVersion);
+            }
+        }
+
+        async function loadVersions() {
+            try {
+                const response = await fetch('versions.json');
+                const data = await response.json();
+                versions = data.versions;
+                const select = document.getElementById('version-select');
+                select.innerHTML = versions.map(v =>
+                    `<option value="${v}">${v}${v === data.latest ? ' (latest)' : ''}</option>`
+                ).join('');
+            } catch (e) {
+                console.error('Failed to load versions', e);
+            }
+        }
+
+        async function loadResources(version) {
+            try {
+                const response = await fetch(`${version}/manifest.json`);
+                const data = await response.json();
+                renderResourceList(data.resources, version);
+                renderResourceCards(data.resources, version);
+            } catch (e) {
+                document.getElementById('resource-list').innerHTML = '<div class="error">Failed to load resources</div>';
+            }
+        }
+
+        async function loadChangelog(version) {
+            try {
+                const response = await fetch(`${version}/changelog.json`);
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.changes && (data.changes.added.length > 0 || data.changes.removed.length > 0 || Object.keys(data.changes.modified).length > 0)) {
+                        renderChangelog(data);
+                        document.getElementById('changelog-section').style.display = '';
+                    }
+                }
+            } catch (e) {
+                // No changelog available
+            }
+        }
+
+        function renderResourceList(resources, version) {
+            const byDomain = groupByDomain(resources);
+            const list = document.getElementById('resource-list');
+            let html = '';
+            for (const [domain, items] of Object.entries(byDomain)) {
+                html += `<div class="nav-group">
+                    <div class="nav-group-header">${getDomainIcon(domain)} ${capitalize(domain)}</div>
+                    ${items.map(r => `<a href="${version}/${r.name}.html" class="nav-item">${r.name}</a>`).join('')}
+                </div>`;
+            }
+            list.innerHTML = html;
+        }
+
+        function renderResourceCards(resources, version) {
+            const byDomain = groupByDomain(resources);
+            const cards = document.getElementById('resource-cards');
+            let html = '';
+            for (const [domain, items] of Object.entries(byDomain)) {
+                html += `<div class="domain-section">
+                    <h3>${getDomainIcon(domain)} ${capitalize(domain)}</h3>
+                    <div class="card-grid">
+                        ${items.map(r => `
+                            <a href="${version}/${r.name}.html" class="resource-card">
+                                <div class="card-title">${r.name}</div>
+                                <div class="card-meta">${r.propertyCount} properties</div>
+                            </a>
+                        `).join('')}
+                    </div>
+                </div>`;
+            }
+            cards.innerHTML = html;
+        }
+
+        function renderChangelog(data) {
+            let html = `<p>Changes from ${data.previousVersion} to ${data.version}:</p>`;
+            if (data.changes.added.length > 0) {
+                html += `<h4>Added</h4><ul>${data.changes.added.map(r => `<li class="added">${r}</li>`).join('')}</ul>`;
+            }
+            if (data.changes.removed.length > 0) {
+                html += `<h4>Removed</h4><ul>${data.changes.removed.map(r => `<li class="removed">${r}</li>`).join('')}</ul>`;
+            }
+            const modified = Object.entries(data.changes.modified);
+            if (modified.length > 0) {
+                html += `<h4>Modified</h4><ul>${modified.map(([name, changes]) => {
+                    let details = [];
+                    if (changes.addedProperties?.length) details.push(`+${changes.addedProperties.length} properties`);
+                    if (changes.removedProperties?.length) details.push(`-${changes.removedProperties.length} properties`);
+                    return `<li class="modified">${name} (${details.join(', ')})</li>`;
+                }).join('')}</ul>`;
+            }
+            document.getElementById('changelog-content').innerHTML = html;
+        }
+
+        function changeVersion(version) {
+            currentVersion = version;
+            loadResources(version);
+            loadChangelog(version);
+        }
+
+        function groupByDomain(resources) {
+            const groups = {};
+            resources.forEach(r => {
+                const domain = r.domain || 'general';
+                if (!groups[domain]) groups[domain] = [];
+                groups[domain].push(r);
+            });
+            return groups;
+        }
+
+        function getDomainIcon(domain) {
+            const icons = {networking:'🌐',compute:'💻',storage:'💾',database:'🗄️',dns:'📍',loadbalancing:'⚖️',security:'🔒',monitoring:'📊',container:'📦',core:'⚙️'};
+            return icons[domain] || '📄';
+        }
+
+        function capitalize(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+
+        function filterResources(query) {
+            const items = document.querySelectorAll('#resource-list .nav-item');
+            const q = query.toLowerCase();
+            items.forEach(item => {
+                item.style.display = item.textContent.toLowerCase().includes(q) ? '' : 'none';
+            });
+        }
+    </script>
+</body>
+</html>

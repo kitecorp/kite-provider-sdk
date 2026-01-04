@@ -1,0 +1,84 @@
+<script type="application/ld+json">
+[
+    {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": "{{RESOURCE}} Resource Documentation",
+        "description": "{{DESCRIPTION}}",
+        "author": {
+            "@type": "Organization",
+            "name": "Kite"
+        },
+        "publisher": {
+            "@type": "Organization",
+            "name": "Kite",
+            "url": "https://kitelang.cloud"
+        },
+        "mainEntityOfPage": {
+            "@type": "WebPage",
+            "@id": "{{BASE_URL}}/{{PROVIDER}}/{{RESOURCE}}.html"
+        },
+        "about": {
+            "@type": "SoftwareSourceCode",
+            "name": "{{RESOURCE}}",
+            "programmingLanguage": "Kite",
+            "codeRepository": "https://github.com/kitelang/kite"
+        },
+        "articleSection": "{{DOMAIN}}",
+        "keywords": ["kite", "{{PROVIDER}}", "{{RESOURCE_LOWER}}", "infrastructure as code", "cloud"]
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "BreadcrumbList",
+        "itemListElement": [
+            {
+                "@type": "ListItem",
+                "position": 1,
+                "name": "{{PROVIDER_DISPLAY}} Provider",
+                "item": "{{BASE_URL}}/{{PROVIDER}}/"
+            },
+            {
+                "@type": "ListItem",
+                "position": 2,
+                "name": "{{DOMAIN}}",
+                "item": "{{BASE_URL}}/{{PROVIDER}}/{{FIRST_IN_DOMAIN}}.html"
+            },
+            {
+                "@type": "ListItem",
+                "position": 3,
+                "name": "{{RESOURCE}}"
+            }
+        ]
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "FAQPage",
+        "mainEntity": [
+            {
+                "@type": "Question",
+                "name": "What is {{RESOURCE}} in Kite?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "{{RESOURCE}} is a {{DOMAIN_LOWER}} resource in the {{PROVIDER_DISPLAY}} provider. {{FAQ_DESCRIPTION}}"
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "How do I import {{RESOURCE}} in Kite?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "Use: import {{RESOURCE}} from \"{{IMPORT_PATH}}\""
+                }
+            },
+            {
+                "@type": "Question",
+                "name": "What properties does {{RESOURCE}} have?",
+                "acceptedAnswer": {
+                    "@type": "Answer",
+                    "text": "{{RESOURCE}} has {{PROPERTY_COUNT}} configurable properties. See the Properties section for details."
+                }
+            }
+        ]
+    }
+]
+</script>

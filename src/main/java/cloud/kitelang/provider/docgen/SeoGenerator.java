@@ -136,7 +136,7 @@ class SeoGenerator {
             <OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/">
                 <ShortName>Kite %s</ShortName>
                 <Description>Search %s provider documentation for Kite infrastructure as code</Description>
-                <Tags>kite iac infrastructure cloud %s terraform</Tags>
+                <Tags>kite iac infrastructure cloud %s </Tags>
                 <Contact>support@kitelang.cloud</Contact>
                 <Url type="text/html" template="%s/%s/index.html?q={searchTerms}"/>
                 <Image width="16" height="16" type="image/x-icon">data:image/svg+xml,&lt;svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'&gt;&lt;text y='.9em' font-size='90'&gt;🪁&lt;/text&gt;&lt;/svg&gt;</Image>

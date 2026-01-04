@@ -1,0 +1,7 @@
+        <item>
+            <title>{{RESOURCE}}</title>
+            <description>{{DESCRIPTION}}</description>
+            <link>{{BASE_URL}}/{{PROVIDER}}/{{RESOURCE}}.html</link>
+            <guid isPermaLink="true">{{BASE_URL}}/{{PROVIDER}}/{{RESOURCE}}.html</guid>
+            <category>{{CATEGORY}}</category>
+        </item>

@@ -1,0 +1,6 @@
+    <url>
+        <loc>{{BASE_URL}}/{{PROVIDER}}/{{RESOURCE}}.html</loc>
+        <lastmod>{{DATE}}</lastmod>
+        <changefreq>weekly</changefreq>
+        <priority>0.8</priority>
+    </url>

@@ -1,0 +1,8 @@
+# Kite {{PROVIDER_DISPLAY}} Provider Documentation
+# {{BASE_URL}}/{{PROVIDER}}/
+
+User-agent: *
+Allow: /
+
+# Sitemap location
+Sitemap: {{BASE_URL}}/{{PROVIDER}}/sitemap.xml

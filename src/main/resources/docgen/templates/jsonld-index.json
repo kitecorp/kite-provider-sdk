@@ -1,0 +1,41 @@
+<script type="application/ld+json">
+[
+    {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Kite {{PROVIDER_DISPLAY}} Provider",
+        "applicationCategory": "DeveloperApplication",
+        "applicationSubCategory": "Infrastructure as Code",
+        "operatingSystem": "Cross-platform",
+        "softwareVersion": "{{VERSION}}",
+        "description": "Infrastructure as code provider for {{PROVIDER_DISPLAY}}. Manage {{RESOURCE_COUNT}} cloud resources with Kite.",
+        "author": {
+            "@type": "Organization",
+            "name": "Kite",
+            "url": "https://kitelang.cloud"
+        },
+        "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+        },
+        "featureList": [
+            "{{RESOURCE_COUNT}} infrastructure resources",
+            "{{CATEGORY_COUNT}} resource categories",
+            "Declarative configuration",
+            "Multi-cloud support"
+        ]
+    },
+    {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Kite {{PROVIDER_DISPLAY}} Provider Documentation",
+        "url": "{{BASE_URL}}/{{PROVIDER}}/",
+        "potentialAction": {
+            "@type": "SearchAction",
+            "target": "{{BASE_URL}}/{{PROVIDER}}/index.html?q={search_term_string}",
+            "query-input": "required name=search_term_string"
+        }
+    }
+]
+</script>
