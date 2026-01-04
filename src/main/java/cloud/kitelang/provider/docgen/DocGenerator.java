@@ -10,8 +10,7 @@ import java.util.Map;
 /**
  * Facade for generating documentation in multiple formats.
  *
- * <p>This class provides backward compatibility and convenience methods
- * that delegate to specialized generators:</p>
+ * <p>This class provides convenience methods that delegate to specialized generators:</p>
  * <ul>
  *   <li>{@link HtmlDocGenerator} - HTML documentation with search and navigation</li>
  *   <li>{@link MarkdownDocGenerator} - Markdown documentation for GitHub/GitLab</li>
@@ -24,13 +23,9 @@ import java.util.Map;
  * var generator = new DocGenerator(provider);
  *
  * // Generate all formats
- * generator.generateHtml(Path.of("docs/html"));
+ * generator.generateHtml(Path.of("docs"), "1.0.0");
  * generator.generateMarkdown(Path.of("docs/md"));
  * generator.generateKite(Path.of("docs/schemas"));
- *
- * // Or use specialized generators directly
- * new HtmlDocGenerator(provider).generate(Path.of("docs/html"));
- * new MarkdownDocGenerator(provider).generateCombined(Path.of("docs/REFERENCE.md"));
  * }</pre>
  */
 public class DocGenerator {
@@ -38,6 +33,7 @@ public class DocGenerator {
     private final HtmlDocGenerator htmlGenerator;
     private final MarkdownDocGenerator markdownGenerator;
     private final KiteSchemaGenerator kiteGenerator;
+    private final String version;
 
     /**
      * Creates a documentation generator from a provider instance.
@@ -46,6 +42,7 @@ public class DocGenerator {
         this.htmlGenerator = new HtmlDocGenerator(provider);
         this.markdownGenerator = new MarkdownDocGenerator(provider);
         this.kiteGenerator = new KiteSchemaGenerator(provider);
+        this.version = provider.getVersion();
     }
 
     /**
@@ -56,21 +53,11 @@ public class DocGenerator {
         this.htmlGenerator = new HtmlDocGenerator(providerName, providerVersion, resourceTypes);
         this.markdownGenerator = new MarkdownDocGenerator(providerName, providerVersion, resourceTypes);
         this.kiteGenerator = new KiteSchemaGenerator(providerName, providerVersion, resourceTypes);
+        this.version = providerVersion;
     }
 
     /**
-     * Generates HTML documentation (legacy flat structure).
-     *
-     * @param outputDir the directory to write files to
-     * @deprecated Use {@link #generateVersionedHtml(Path, String)} for versioned docs
-     */
-    @Deprecated
-    public void generateHtml(Path outputDir) throws IOException {
-        htmlGenerator.generate(outputDir);
-    }
-
-    /**
-     * Generates versioned HTML documentation with non-versioned index.
+     * Generates versioned HTML documentation.
      * <p>
      * Structure:
      * <pre>
@@ -81,13 +68,22 @@ public class DocGenerator {
      * ├── versions.json   (list of all versions)
      * └── {version}/
      *     ├── manifest.json
-     *     └── {Resource}.html
+     *     └── html/{Resource}.html
      * </pre>
      *
      * @param docsRoot the root docs directory (e.g., aws/docs/)
      * @param version  the current version being generated
      */
-    public void generateVersionedHtml(Path docsRoot, String version) throws IOException {
+    public void generateHtml(Path docsRoot, String version) throws IOException {
+        htmlGenerator.generateVersioned(docsRoot, version);
+    }
+
+    /**
+     * Generates versioned HTML documentation using the provider's version.
+     *
+     * @param docsRoot the root docs directory
+     */
+    public void generateHtml(Path docsRoot) throws IOException {
         htmlGenerator.generateVersioned(docsRoot, version);
     }
 
@@ -121,10 +117,10 @@ public class DocGenerator {
     /**
      * Generates all documentation formats to the given base directory.
      *
-     * @param baseDir the base directory (will create html/, md/, schemas/ subdirs)
+     * @param baseDir the base directory (HTML at root, md/ and schemas/ subdirs)
      */
     public void generateAll(Path baseDir) throws IOException {
-        generateHtml(baseDir.resolve("html"));
+        generateHtml(baseDir, version);
         generateMarkdown(baseDir.resolve("md"));
         generateKite(baseDir.resolve("schemas"));
     }

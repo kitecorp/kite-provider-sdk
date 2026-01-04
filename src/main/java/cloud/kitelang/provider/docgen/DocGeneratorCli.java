@@ -62,17 +62,11 @@ public class DocGeneratorCli {
         for (var format : formats.split(",")) {
             switch (format.trim().toLowerCase()) {
                 case "html" -> {
-                    if (version != null) {
-                        // Versioned: non-versioned index at root, resources in version subdirectory
-                        generator.generateVersionedHtml(outputPath, version);
-                        System.out.println("Generated versioned HTML documentation:");
-                        System.out.println("  - Shared assets at " + outputPath);
-                        System.out.println("  - Resource pages at " + outputPath.resolve(version));
-                    } else {
-                        // Legacy: all files in html/ subdirectory
-                        generator.generateHtml(outputPath.resolve("html"));
-                        System.out.println("Generated HTML documentation in " + outputPath.resolve("html"));
-                    }
+                    var ver = version != null ? version : providerInstance.getVersion();
+                    generator.generateHtml(outputPath, ver);
+                    System.out.println("Generated HTML documentation:");
+                    System.out.println("  - Shared assets at " + outputPath);
+                    System.out.println("  - Resource pages at " + outputPath.resolve(ver).resolve("html"));
                 }
                 case "markdown", "md" -> {
                     var mdPath = version != null ? outputPath.resolve(version).resolve("markdown") : outputPath.resolve("markdown");

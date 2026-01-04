@@ -1,0 +1,26 @@
+                <section id="example">
+                    <h2>Examples</h2>
+                    <div class="example-tabs">
+                        <button class="example-tab active" onclick="showExample(this, 'basic')">Basic</button>
+                        <button class="example-tab" onclick="showExample(this, 'references')">With References</button>
+                        <button class="example-tab" onclick="showExample(this, 'complete')">Complete</button>
+                    </div>
+                    <div class="example-content active" id="example-basic">
+                        <div class="code-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                            <pre class="code-block"><code itemprop="text">{{EXAMPLE_BASIC}}</code></pre>
+                        </div>
+                    </div>
+                    <div class="example-content" id="example-references">
+                        <div class="code-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                            <pre class="code-block"><code>{{EXAMPLE_REFERENCES}}</code></pre>
+                        </div>
+                    </div>
+                    <div class="example-content" id="example-complete">
+                        <div class="code-wrapper">
+                            <button class="copy-btn" onclick="copyCode(this)" aria-label="Copy code">Copy</button>
+                            <pre class="code-block"><code>{{EXAMPLE_COMPLETE}}</code></pre>
+                        </div>
+                    </div>
+                </section>

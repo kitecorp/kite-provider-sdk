@@ -1,0 +1,32 @@
+        <aside class="sidebar-left">
+            <div class="sidebar-header">
+                <div class="header-top">
+                    <a href="index.html" class="logo-link">
+                        <h1>🪁 {{PROVIDER_NAME}}</h1>
+                    </a>
+                    <button class="theme-toggle" onclick="toggleTheme()" aria-label="Toggle dark/light mode" title="Toggle theme">
+                        <span class="theme-icon-light">☀️</span>
+                        <span class="theme-icon-dark">🌙</span>
+                    </button>
+                </div>
+                <div class="version-selector">
+                    <select id="version-select" onchange="switchVersion(this.value)" aria-label="Select version">
+                        <option value="{{VERSION}}" selected>v{{VERSION}}</option>
+                    </select>
+                </div>
+                <a href="changelog.html" class="whats-new-link">✨ What's New</a>
+            </div>
+            <div class="search-wrapper">
+                <div class="search-container">
+                    <input type="search" id="search" placeholder="Search resources..." class="search-input" aria-label="Search resources">
+                    <kbd class="search-hint">/</kbd>
+                </div>
+            </div>
+            <div id="recently-viewed" class="recently-viewed" style="display: none;">
+                <div class="recently-header">Recently Viewed</div>
+                <ul class="recently-list"></ul>
+            </div>
+            <nav class="nav-tree" aria-label="Resources navigation">
+{{NAV_CATEGORIES}}
+            </nav>
+        </aside>
