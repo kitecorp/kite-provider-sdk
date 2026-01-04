@@ -485,6 +485,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         sb.append("{\n");
         sb.append("  \"provider\": \"").append(providerInfo.getName().toLowerCase()).append("\",\n");
         sb.append("  \"version\": \"").append(providerInfo.getVersion()).append("\",\n");
+        if (providerInfo.getLogoUrl() != null && !providerInfo.getLogoUrl().isEmpty()) {
+            sb.append("  \"logoUrl\": \"").append(providerInfo.getLogoUrl()).append("\",\n");
+        }
         sb.append("  \"generatedAt\": \"").append(LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME)).append("\",\n");
         sb.append("  \"resources\": {\n");
 
