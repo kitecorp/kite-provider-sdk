@@ -70,6 +70,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         Files.writeString(docsRoot.resolve("robots.txt"), seoGenerator.generateRobotsTxt());
         Files.writeString(docsRoot.resolve("feed.xml"), seoGenerator.generateRssFeed());
         Files.writeString(docsRoot.resolve("opensearch.xml"), seoGenerator.generateOpenSearch());
+        Files.writeString(docsRoot.resolve("changelog.html"), generateChangelog(version));
 
         // Generate manifest at version root
         Files.writeString(versionDir.resolve("manifest.json"), generateManifest());
@@ -121,6 +122,20 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         ));
 
         return head + body;
+    }
+
+    private String generateChangelog(String version) {
+        var displayName = capitalize(providerInfo.getName());
+
+        // The changelog template fetches changelog.json from the version directory
+        // We need to update the fetch URL to point to the current version
+        var template = readResource("/docgen/templates/changelog.html");
+        template = template.replace("{{PROVIDER_NAME}}", displayName);
+        template = template.replace("{{VERSION}}", version);
+        template = template.replace("{{NAVIGATION}}", ""); // No navigation on changelog page
+        template = template.replace("fetch('changelog.json')", "fetch('" + version + "/changelog.json')");
+
+        return template;
     }
 
     private String generateResourcePage(ResourceInfo resource, String assetPrefix) {
