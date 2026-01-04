@@ -25,6 +25,7 @@ public abstract class DocGeneratorBase {
         this.providerInfo = ProviderInfo.builder()
                 .name(provider.getName())
                 .version(provider.getVersion())
+                .logoUrl(provider.getLogoUrl())
                 .build();
 
         this.resources = provider.getResourceTypes().entrySet().stream()
@@ -201,6 +202,7 @@ public abstract class DocGeneratorBase {
     public static class ProviderInfo {
         private String name;
         private String version;
+        private String logoUrl;
     }
 
     @Data

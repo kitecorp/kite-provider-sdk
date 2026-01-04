@@ -49,6 +49,7 @@ public abstract class KiteProvider {
 
     private final String name;
     private final String version;
+    private final String logoUrl;
     private final Map<String, ResourceTypeHandler<?>> resourceTypes = new HashMap<>();
     private Object config;
 
@@ -70,6 +71,7 @@ public abstract class KiteProvider {
         var info = loadProviderInfo();
         this.name = info != null ? info.path("name").asText(null) : null;
         this.version = info != null ? info.path("version").asText(null) : null;
+        this.logoUrl = info != null ? info.path("logoUrl").asText(null) : null;
 
         if (this.name == null || this.version == null) {
             throw new IllegalStateException(
@@ -77,7 +79,7 @@ public abstract class KiteProvider {
                     "Ensure you're using the kite-provider-gradle-plugin, or use the constructor that accepts name and version.");
         }
 
-        log.debug("Provider info loaded: name={}, version={}", name, version);
+        log.debug("Provider info loaded: name={}, version={}, logoUrl={}", name, version, logoUrl);
 
         if (autoDiscover) {
             discoverResourcesFromManifest();
@@ -108,6 +110,7 @@ public abstract class KiteProvider {
     protected KiteProvider(String name, String version, boolean autoDiscover) {
         this.name = name;
         this.version = version;
+        this.logoUrl = null;
         if (autoDiscover) {
             // Try manifest first (GraalVM compatible), fall back to runtime scanning
             discoverResourcesFromManifest();

@@ -105,6 +105,14 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         return render(readResource(templatePath), vars);
     }
 
+    private String generateLogoHtml() {
+        var logoUrl = providerInfo.getLogoUrl();
+        if (logoUrl != null && !logoUrl.isEmpty()) {
+            return "<img src=\"" + logoUrl + "\" alt=\"" + providerInfo.getName() + " logo\" class=\"provider-logo\">";
+        }
+        return "<span class=\"provider-emoji\">🪁</span>";
+    }
+
     // ========== Page Generation ==========
 
     private String generateIndex(boolean versioned) {
@@ -118,7 +126,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
                 "PROVIDER_NAME", displayName,
                 "PROVIDER_NAME_LOWER", providerInfo.getName().toLowerCase(),
                 "VERSION", providerInfo.getVersion(),
-                "EXAMPLE_RESOURCE", exampleResource
+                "EXAMPLE_RESOURCE", exampleResource,
+                "LOGO_HTML", generateLogoHtml()
         ));
 
         return head + body;
@@ -321,7 +330,8 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         return renderTemplate("/docgen/templates/navigation.html", Map.of(
                 "PROVIDER_NAME", capitalize(providerInfo.getName()),
                 "VERSION", providerInfo.getVersion(),
-                "NAV_CATEGORIES", categories.toString()
+                "NAV_CATEGORIES", categories.toString(),
+                "LOGO_HTML", generateLogoHtml()
         ));
     }
 
