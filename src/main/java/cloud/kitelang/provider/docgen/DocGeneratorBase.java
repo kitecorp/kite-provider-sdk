@@ -98,7 +98,7 @@ public abstract class DocGeneratorBase {
     protected boolean isKnownDomain(String name) {
         return switch (name) {
             case "networking", "compute", "storage", "dns", "loadbalancing",
-                 "database", "security", "monitoring", "core", "container" -> true;
+                 "database", "security", "iam", "monitoring", "core", "container" -> true;
             default -> false;
         };
     }
@@ -134,9 +134,10 @@ public abstract class DocGeneratorBase {
             case "dns" -> 5;
             case "loadbalancing" -> 6;
             case "security" -> 7;
-            case "monitoring" -> 8;
-            case "container" -> 9;
-            case "core" -> 10;
+            case "iam" -> 8;
+            case "monitoring" -> 9;
+            case "container" -> 10;
+            case "core" -> 11;
             default -> 99;
         };
     }
@@ -150,6 +151,7 @@ public abstract class DocGeneratorBase {
             case "dns" -> "📍";
             case "loadbalancing" -> "⚖️";
             case "security" -> "🔒";
+            case "iam" -> "🪪";
             case "monitoring" -> "📊";
             case "container" -> "📦";
             case "core" -> "⚙️";
