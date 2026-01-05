@@ -86,7 +86,7 @@ public abstract class DocGeneratorBase {
     protected String extractDomain(Class<?> handlerClass) {
         var packageName = handlerClass.getPackageName();
         var parts = packageName.split("\\.");
-        if (parts.length >= 5) {
+        if (parts.length > 0) {
             var lastPart = parts[parts.length - 1];
             if (isKnownDomain(lastPart)) {
                 return lastPart;
@@ -98,7 +98,7 @@ public abstract class DocGeneratorBase {
     protected boolean isKnownDomain(String name) {
         return switch (name) {
             case "networking", "compute", "storage", "dns", "loadbalancing",
-                 "database", "security", "iam", "monitoring", "core", "container" -> true;
+                 "database", "security", "iam", "monitoring", "core", "container", "files" -> true;
             default -> false;
         };
     }
@@ -137,7 +137,8 @@ public abstract class DocGeneratorBase {
             case "iam" -> 8;
             case "monitoring" -> 9;
             case "container" -> 10;
-            case "core" -> 11;
+            case "files" -> 11;
+            case "core" -> 12;
             default -> 99;
         };
     }
@@ -154,6 +155,7 @@ public abstract class DocGeneratorBase {
             case "iam" -> "🪪";
             case "monitoring" -> "📊";
             case "container" -> "📦";
+            case "files" -> "📁";
             case "core" -> "⚙️";
             default -> "📄";
         };
