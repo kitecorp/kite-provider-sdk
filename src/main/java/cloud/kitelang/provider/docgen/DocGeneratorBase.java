@@ -150,7 +150,7 @@ public abstract class DocGeneratorBase {
             case "storage" -> "💾";
             case "database" -> "🗄️";
             case "dns" -> "📍";
-            case "loadbalancing" -> "⚖️";
+            case "loadbalancing" -> "🚦";
             case "security" -> "🔒";
             case "iam" -> "🪪";
             case "monitoring" -> "📊";
