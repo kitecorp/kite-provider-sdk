@@ -102,8 +102,14 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
         // Header comment
         sb.append("// ").append(resource.getName()).append("\n");
 
-        // Calculate max property name length for alignment
-        int maxLen = resource.getProperties().stream()
+        // Calculate max type length for alignment
+        int maxTypeLen = resource.getProperties().stream()
+                .mapToInt(p -> p.getType().length())
+                .max()
+                .orElse(0);
+
+        // Calculate max name+default length for comment alignment
+        int maxNameLen = resource.getProperties().stream()
                 .mapToInt(p -> {
                     int len = p.getName().length();
                     if (p.getDefaultValue() != null && !p.getDefaultValue().isEmpty()) {
@@ -136,9 +142,12 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
                 }
             }
 
-            // Type and name
+            // Type (aligned)
             sb.append("    ").append(prop.getType());
-            sb.append(" ").append(prop.getName());
+            sb.append(" ".repeat(maxTypeLen - prop.getType().length() + 1));
+
+            // Name
+            sb.append(prop.getName());
 
             // Default value assignment
             String nameWithDefault = prop.getName();
@@ -148,9 +157,9 @@ public class KiteSchemaGenerator extends DocGeneratorBase {
                 nameWithDefault = prop.getName() + " = " + formattedDefault;
             }
 
-            // Comment with description
+            // Comment with description (aligned)
             if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
-                sb.append(" ".repeat(Math.max(1, maxLen - nameWithDefault.length() + 2)));
+                sb.append(" ".repeat(Math.max(1, maxNameLen - nameWithDefault.length() + 2)));
                 sb.append("// ").append(prop.getDescription());
             }
             sb.append("\n");
