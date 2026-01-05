@@ -10,7 +10,6 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -33,13 +32,13 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
     private final SeoGenerator seoGenerator;
     private final JsonLdGenerator jsonLdGenerator;
-    private final ExampleGenerator exampleGenerator;
+    private final SyntaxHighlightedHtmlGenerator syntaxHighlightedHtmlGenerator;
 
     public HtmlDocGenerator(KiteProvider provider) {
         super(provider);
         this.seoGenerator = new SeoGenerator(BASE_URL, providerInfo, resources);
         this.jsonLdGenerator = new JsonLdGenerator(BASE_URL, providerInfo, resources);
-        this.exampleGenerator = new ExampleGenerator(resources);
+        this.syntaxHighlightedHtmlGenerator = new SyntaxHighlightedHtmlGenerator(resources);
     }
 
     public HtmlDocGenerator(String providerName, String providerVersion,
@@ -47,7 +46,7 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         super(providerName, providerVersion, resourceTypes);
         this.seoGenerator = new SeoGenerator(BASE_URL, providerInfo, resources);
         this.jsonLdGenerator = new JsonLdGenerator(BASE_URL, providerInfo, resources);
-        this.exampleGenerator = new ExampleGenerator(resources);
+        this.syntaxHighlightedHtmlGenerator = new SyntaxHighlightedHtmlGenerator(resources);
     }
 
     /**
@@ -195,14 +194,14 @@ public class HtmlDocGenerator extends DocGeneratorBase {
 
         // Examples section
         sb.append(renderTemplate("/docgen/templates/resource-examples.html", Map.of(
-                "EXAMPLE_BASIC", exampleGenerator.generateBasicExample(resource),
-                "EXAMPLE_REFERENCES", exampleGenerator.generateReferencesExample(resource, domain),
-                "EXAMPLE_COMPLETE", exampleGenerator.generateCompleteExample(resource)
+                "EXAMPLE_BASIC", syntaxHighlightedHtmlGenerator.generateBasicExample(resource),
+                "EXAMPLE_REFERENCES", syntaxHighlightedHtmlGenerator.generateReferencesExample(resource, domain),
+                "EXAMPLE_COMPLETE", syntaxHighlightedHtmlGenerator.generateCompleteExample(resource)
         )));
 
         // Schema section
         sb.append(renderTemplate("/docgen/templates/resource-schema.html", Map.of(
-                "SCHEMA", exampleGenerator.generateSchema(resource)
+                "SCHEMA", syntaxHighlightedHtmlGenerator.generateSchema(resource)
         )));
 
         // Properties section

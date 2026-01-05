@@ -8,11 +8,11 @@ import java.util.List;
 /**
  * Generates syntax-highlighted code examples for resources.
  */
-class ExampleGenerator {
+class SyntaxHighlightedHtmlGenerator {
 
     private final List<ResourceInfo> resources;
 
-    ExampleGenerator(List<ResourceInfo> resources) {
+    SyntaxHighlightedHtmlGenerator(List<ResourceInfo> resources) {
         this.resources = resources;
     }
 
