@@ -184,10 +184,9 @@ public class HtmlDocGenerator extends DocGeneratorBase {
         )));
 
         // Import section
-        var importPath = "%s/%s/%s.kite".formatted(
+        var importPath = "%s/%s".formatted(
                 providerInfo.getName().toLowerCase(),
-                domain.toLowerCase(),
-                resource.getName()
+                domain.toLowerCase()
         );
         sb.append(renderTemplate("/docgen/templates/resource-import.html", Map.of(
                 "RESOURCE_NAME", resource.getName(),

@@ -30,7 +30,7 @@ class JsonLdGenerator {
         var provider = providerInfo.getName().toLowerCase();
         var providerDisplay = capitalize(providerInfo.getName());
         var description = resource.getDescription() != null ? escapeJson(resource.getDescription()) : "";
-        var importPath = "%s/%s/%s.kite".formatted(provider, domain.toLowerCase(), resource.getName());
+        var importPath = "%s/%s".formatted(provider, domain.toLowerCase());
         var faqDescription = description.isEmpty()
                 ? "Use it to manage your cloud infrastructure."
                 : description;
