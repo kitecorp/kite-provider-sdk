@@ -137,7 +137,14 @@ class ExampleGenerator {
 
         sb.append("<span class=\"comment\">// ").append(resource.getName()).append("</span>\n");
 
-        int maxLen = resource.getProperties().stream()
+        // Calculate max type length for alignment
+        int maxTypeLen = resource.getProperties().stream()
+                .mapToInt(p -> p.getType().length())
+                .max()
+                .orElse(0);
+
+        // Calculate max name+default length for comment alignment
+        int maxNameLen = resource.getProperties().stream()
                 .mapToInt(p -> {
                     int len = p.getName().length();
                     if (p.getDefaultValue() != null && !p.getDefaultValue().isEmpty()) {
@@ -168,7 +175,11 @@ class ExampleGenerator {
                 }
             }
 
-            sb.append("    <span class=\"type\">").append(prop.getType()).append("</span> ");
+            // Type (aligned)
+            sb.append("    <span class=\"type\">").append(prop.getType()).append("</span>");
+            sb.append(" ".repeat(maxTypeLen - prop.getType().length() + 1));
+
+            // Name
             sb.append("<span class=\"prop\">").append(prop.getName()).append("</span>");
 
             String nameWithDefault = prop.getName();
@@ -185,8 +196,9 @@ class ExampleGenerator {
                 nameWithDefault = prop.getName() + " = " + formattedDefault;
             }
 
+            // Comment (aligned)
             if (prop.getDescription() != null && !prop.getDescription().isEmpty()) {
-                sb.append(" ".repeat(Math.max(1, maxLen - nameWithDefault.length() + 2)));
+                sb.append(" ".repeat(Math.max(1, maxNameLen - nameWithDefault.length() + 2)));
                 sb.append("<span class=\"comment\">// ").append(escapeHtml(prop.getDescription())).append("</span>");
             }
             sb.append("\n");
