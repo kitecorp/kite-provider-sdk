@@ -176,7 +176,7 @@ public class MarkdownDocGenerator extends DocGeneratorBase {
             case "boolean" -> "true";
             case "number" -> "3.14";
             case "list" -> "[\"item1\", \"item2\"]";
-            case "map" -> "{ key = \"value\" }";
+            case "map" -> "{ key: \"value\" }";
             default -> "\"...\"";
         };
     }

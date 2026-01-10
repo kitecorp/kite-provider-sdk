@@ -226,7 +226,7 @@ class SyntaxHighlightedHtmlGenerator {
             case "boolean" -> "<span class=\"bool\">true</span>";
             case "number" -> "<span class=\"num\">3.14</span>";
             case "list" -> "<span class=\"brace\">[</span><span class=\"str\">\"item1\"</span>, <span class=\"str\">\"item2\"</span><span class=\"brace\">]</span>";
-            case "map" -> "<span class=\"brace\">{</span> <span class=\"prop\">key</span> <span class=\"eq\">=</span> <span class=\"str\">\"value\"</span> <span class=\"brace\">}</span>";
+            case "map" -> "<span class=\"brace\">{</span> <span class=\"prop\">key</span><span class=\"colon\">:</span> <span class=\"str\">\"value\"</span> <span class=\"brace\">}</span>";
             default -> "<span class=\"str\">\"...\"</span>";
         };
     }
