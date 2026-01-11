@@ -103,22 +103,33 @@ public abstract class DocGeneratorBase {
         };
     }
 
+    /**
+     * Formats a Java type to a valid Kite type.
+     * Kite primitive types (from grammar): string, number, boolean, object, any
+     * Array syntax: type[]
+     */
     protected String formatType(Object type, Class<?> typeClass) {
         if (typeClass == null) {
             return type != null ? type.toString() : "any";
         }
 
+        // Kite primitives - see KiteLexer.g4 and KiteParser.g4
         if (typeClass == String.class) return "string";
-        if (typeClass == Integer.class || typeClass == int.class) return "integer";
-        if (typeClass == Long.class || typeClass == long.class) return "integer";
+        if (typeClass == Integer.class || typeClass == int.class) return "number";
+        if (typeClass == Long.class || typeClass == long.class) return "number";
+        if (typeClass == Short.class || typeClass == short.class) return "number";
+        if (typeClass == Byte.class || typeClass == byte.class) return "number";
         if (typeClass == Boolean.class || typeClass == boolean.class) return "boolean";
         if (typeClass == Double.class || typeClass == double.class) return "number";
         if (typeClass == Float.class || typeClass == float.class) return "number";
-        if (List.class.isAssignableFrom(typeClass)) return "any[]";  // Kite uses array syntax
-        if (Map.class.isAssignableFrom(typeClass)) return "object"; // Dynamic maps use object
-        if (Set.class.isAssignableFrom(typeClass)) return "any[]";  // Sets as arrays
 
-        return typeClass.getSimpleName().toLowerCase();
+        // Collections - Kite uses array syntax type[] and object for maps
+        if (List.class.isAssignableFrom(typeClass)) return "any[]";
+        if (Map.class.isAssignableFrom(typeClass)) return "object";
+        if (Set.class.isAssignableFrom(typeClass)) return "any[]";
+
+        // Fallback to 'any' for unknown types - prevents invalid type names
+        return "any";
     }
 
     protected boolean isOptionalType(Class<?> typeClass) {
