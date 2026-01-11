@@ -6,6 +6,9 @@ import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.time.Duration;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -13,6 +16,9 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Uses a handshake protocol where the engine sets environment variables
  * (magic cookie, protocol version) and the provider outputs its port to stdout.</p>
+ *
+ * <p>Supports persistent mode with idle timeout - provider will auto-shutdown
+ * after a configurable period of inactivity.</p>
  */
 @Slf4j
 public class ProviderServer {
@@ -20,9 +26,13 @@ public class ProviderServer {
     private static final int PROTOCOL_VERSION = 1;
     private static final String MAGIC_COOKIE_ENV = "KITE_PLUGIN_MAGIC_COOKIE";
     private static final String PROTOCOL_VERSION_ENV = "KITE_PLUGIN_PROTOCOL_VERSION";
+    private static final String IDLE_TIMEOUT_ENV = "KITE_PLUGIN_IDLE_TIMEOUT";
+    private static final long DEFAULT_IDLE_TIMEOUT_MS = Duration.ofMinutes(30).toMillis();
 
     private final KiteProvider provider;
     private Server server;
+    private ScheduledExecutorService idleChecker;
+    private ProviderServiceImpl serviceImpl;
 
     public ProviderServer(KiteProvider provider) {
         this.provider = provider;
@@ -65,11 +75,22 @@ public class ProviderServer {
             System.exit(1);
         }
 
+        // Read idle timeout from environment
+        long idleTimeoutMs = DEFAULT_IDLE_TIMEOUT_MS;
+        String idleTimeoutStr = System.getenv(IDLE_TIMEOUT_ENV);
+        if (idleTimeoutStr != null && !idleTimeoutStr.isEmpty()) {
+            try {
+                idleTimeoutMs = Long.parseLong(idleTimeoutStr);
+            } catch (NumberFormatException e) {
+                log.warn("Invalid idle timeout '{}', using default {}ms", idleTimeoutStr, DEFAULT_IDLE_TIMEOUT_MS);
+            }
+        }
+
         // Find an available port
         int port = findAvailablePort();
 
-        // Create the gRPC service implementation
-        var serviceImpl = new ProviderServiceImpl(provider);
+        // Create the gRPC service implementation with idle tracking
+        serviceImpl = new ProviderServiceImpl(provider, idleTimeoutMs);
 
         // Build and start the server
         server = ServerBuilder.forPort(port)
@@ -77,12 +98,15 @@ public class ProviderServer {
                 .build()
                 .start();
 
-        log.info("Provider server started on port {}", port);
+        log.info("Provider server started on port {} (idle timeout: {}s)", port, idleTimeoutMs / 1000);
 
         // Print the handshake line to stdout
         // Format: KITE_PLUGIN|<protocol_version>|<port>|grpc
         System.out.println(HANDSHAKE_PREFIX + "|" + PROTOCOL_VERSION + "|" + port + "|grpc");
         System.out.flush();
+
+        // Start idle timeout checker
+        startIdleChecker(idleTimeoutMs);
 
         // Add shutdown hook
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
@@ -99,9 +123,43 @@ public class ProviderServer {
     }
 
     /**
+     * Start a background thread that checks for idle timeout.
+     */
+    private void startIdleChecker(long idleTimeoutMs) {
+        if (idleTimeoutMs <= 0) {
+            log.info("Idle timeout disabled");
+            return;
+        }
+
+        idleChecker = Executors.newSingleThreadScheduledExecutor(r -> {
+            Thread t = new Thread(r, "idle-checker");
+            t.setDaemon(true);
+            return t;
+        });
+
+        // Check every 30 seconds
+        long checkIntervalMs = Math.min(30_000, idleTimeoutMs / 2);
+        idleChecker.scheduleAtFixedRate(() -> {
+            long idleMs = serviceImpl.getIdleTimeMs();
+            if (idleMs >= idleTimeoutMs) {
+                log.info("Provider idle for {}s, shutting down", idleMs / 1000);
+                try {
+                    stop();
+                    System.exit(0);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
+        }, checkIntervalMs, checkIntervalMs, TimeUnit.MILLISECONDS);
+    }
+
+    /**
      * Stop the server gracefully.
      */
     public void stop() throws InterruptedException {
+        if (idleChecker != null) {
+            idleChecker.shutdownNow();
+        }
         if (server != null) {
             server.shutdown();
             if (!server.awaitTermination(30, TimeUnit.SECONDS)) {

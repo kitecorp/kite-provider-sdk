@@ -12,20 +12,53 @@ import java.util.List;
 
 /**
  * gRPC service implementation that delegates to a KiteProvider.
+ * Tracks activity for idle timeout in persistent provider mode.
  */
 @Slf4j
 public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     private final KiteProvider provider;
     private final ObjectMapper msgpackMapper;
+    private final long startTimeMs;
+    private final long idleTimeoutMs;
+    private volatile long lastActivityMs;
 
     public ProviderServiceImpl(KiteProvider provider) {
+        this(provider, 0);
+    }
+
+    public ProviderServiceImpl(KiteProvider provider, long idleTimeoutMs) {
         this.provider = provider;
         this.msgpackMapper = new MessagePackMapper();
+        this.startTimeMs = System.currentTimeMillis();
+        this.lastActivityMs = startTimeMs;
+        this.idleTimeoutMs = idleTimeoutMs;
+    }
+
+    /**
+     * Update last activity timestamp.
+     */
+    private void touchActivity() {
+        this.lastActivityMs = System.currentTimeMillis();
+    }
+
+    /**
+     * Get milliseconds since last activity.
+     */
+    public long getIdleTimeMs() {
+        return System.currentTimeMillis() - lastActivityMs;
+    }
+
+    /**
+     * Get uptime in milliseconds.
+     */
+    public long getUptimeMs() {
+        return System.currentTimeMillis() - startTimeMs;
     }
 
     @Override
     public void getProviderSchema(GetProviderSchema.Request request,
                                   StreamObserver<GetProviderSchema.Response> responseObserver) {
+        touchActivity();
         log.debug("GetProviderSchema called for provider: {}", provider.getName());
 
         var responseBuilder = GetProviderSchema.Response.newBuilder();
@@ -47,6 +80,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void configureProvider(ConfigureProvider.Request request,
                                   StreamObserver<ConfigureProvider.Response> responseObserver) {
+        touchActivity();
         log.debug("ConfigureProvider called");
 
         try {
@@ -72,6 +106,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void validateResourceConfig(ValidateResourceConfig.Request request,
                                        StreamObserver<ValidateResourceConfig.Response> responseObserver) {
+        touchActivity();
         log.debug("ValidateResourceConfig called for type: {}", request.getTypeName());
 
         var responseBuilder = ValidateResourceConfig.Response.newBuilder();
@@ -101,6 +136,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void createResource(CreateResource.Request request,
                                StreamObserver<CreateResource.Response> responseObserver) {
+        touchActivity();
         log.debug("CreateResource called for type: {}", request.getTypeName());
         var startTime = System.currentTimeMillis();
 
@@ -130,6 +166,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void readResource(ReadResource.Request request,
                              StreamObserver<ReadResource.Response> responseObserver) {
+        touchActivity();
         log.debug("ReadResource called for type: {}", request.getTypeName());
         var startTime = System.currentTimeMillis();
 
@@ -161,6 +198,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void updateResource(UpdateResource.Request request,
                                StreamObserver<UpdateResource.Response> responseObserver) {
+        touchActivity();
         log.debug("UpdateResource called for type: {}", request.getTypeName());
         var startTime = System.currentTimeMillis();
 
@@ -190,6 +228,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void deleteResource(DeleteResource.Request request,
                                StreamObserver<DeleteResource.Response> responseObserver) {
+        touchActivity();
         log.debug("DeleteResource called for type: {}", request.getTypeName());
         var startTime = System.currentTimeMillis();
 
@@ -224,6 +263,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     @Override
     public void planResourceChange(PlanResourceChange.Request request,
                                    StreamObserver<PlanResourceChange.Response> responseObserver) {
+        touchActivity();
         log.debug("PlanResourceChange called for type: {}", request.getTypeName());
 
         var responseBuilder = PlanResourceChange.Response.newBuilder();
@@ -274,6 +314,23 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                 Thread.currentThread().interrupt();
             }
         });
+    }
+
+    @Override
+    public void healthCheck(HealthCheck.Request request,
+                            StreamObserver<HealthCheck.Response> responseObserver) {
+        // Don't touch activity for health checks - they shouldn't reset idle timer
+        log.debug("HealthCheck called");
+
+        var response = HealthCheck.Response.newBuilder()
+                .setHealthy(true)
+                .setUptimeMs(getUptimeMs())
+                .setLastActivityMs(getIdleTimeMs())
+                .setIdleTimeoutMs(idleTimeoutMs)
+                .build();
+
+        responseObserver.onNext(response);
+        responseObserver.onCompleted();
     }
 
     /**
