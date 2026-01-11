@@ -102,6 +102,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     public void createResource(CreateResource.Request request,
                                StreamObserver<CreateResource.Response> responseObserver) {
         log.debug("CreateResource called for type: {}", request.getTypeName());
+        var startTime = System.currentTimeMillis();
 
         var responseBuilder = CreateResource.Response.newBuilder();
 
@@ -115,6 +116,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                 Object resource = fromResourcePayload(request.getConfig(), resourceType.getResourceClass());
                 Object created = resourceType.create(resource);
                 responseBuilder.setNewState(toResourcePayload(created));
+                log.info("Created {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
             log.error("Create failed", e);
@@ -129,6 +131,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     public void readResource(ReadResource.Request request,
                              StreamObserver<ReadResource.Response> responseObserver) {
         log.debug("ReadResource called for type: {}", request.getTypeName());
+        var startTime = System.currentTimeMillis();
 
         var responseBuilder = ReadResource.Response.newBuilder();
 
@@ -144,6 +147,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                 if (current != null) {
                     responseBuilder.setNewState(toResourcePayload(current));
                 }
+                log.info("Read {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
             log.error("Read failed", e);
@@ -158,6 +162,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     public void updateResource(UpdateResource.Request request,
                                StreamObserver<UpdateResource.Response> responseObserver) {
         log.debug("UpdateResource called for type: {}", request.getTypeName());
+        var startTime = System.currentTimeMillis();
 
         var responseBuilder = UpdateResource.Response.newBuilder();
 
@@ -171,6 +176,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                 Object resource = fromResourcePayload(request.getPlannedState(), resourceType.getResourceClass());
                 Object updated = resourceType.update(resource);
                 responseBuilder.setNewState(toResourcePayload(updated));
+                log.info("Updated {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
             log.error("Update failed", e);
@@ -185,6 +191,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     public void deleteResource(DeleteResource.Request request,
                                StreamObserver<DeleteResource.Response> responseObserver) {
         log.debug("DeleteResource called for type: {}", request.getTypeName());
+        var startTime = System.currentTimeMillis();
 
         var responseBuilder = DeleteResource.Response.newBuilder();
 
@@ -203,6 +210,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                             .setSummary("Resource not found")
                             .build());
                 }
+                log.info("Deleted {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
             log.error("Delete failed", e);
