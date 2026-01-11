@@ -114,9 +114,9 @@ public abstract class DocGeneratorBase {
         if (typeClass == Boolean.class || typeClass == boolean.class) return "boolean";
         if (typeClass == Double.class || typeClass == double.class) return "number";
         if (typeClass == Float.class || typeClass == float.class) return "number";
-        if (List.class.isAssignableFrom(typeClass)) return "list";
-        if (Map.class.isAssignableFrom(typeClass)) return "map";
-        if (Set.class.isAssignableFrom(typeClass)) return "set";
+        if (List.class.isAssignableFrom(typeClass)) return "any[]";  // Kite uses array syntax
+        if (Map.class.isAssignableFrom(typeClass)) return "object"; // Dynamic maps use object
+        if (Set.class.isAssignableFrom(typeClass)) return "any[]";  // Sets as arrays
 
         return typeClass.getSimpleName().toLowerCase();
     }
