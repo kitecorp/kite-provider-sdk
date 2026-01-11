@@ -284,6 +284,11 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                     .setRequired(true) // Default to required
                     .setComputed(property.isCloud());
 
+            // Include default value if present
+            if (property.defaultValue() != null) {
+                propBuilder.setDefaultValue(property.defaultValue());
+            }
+
             blockBuilder.addProperties(propBuilder.build());
         }
 
