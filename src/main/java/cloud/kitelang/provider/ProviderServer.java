@@ -94,6 +94,7 @@ public class ProviderServer {
 
         // Build and start the server
         server = ServerBuilder.forPort(port)
+                .executor(Executors.newVirtualThreadPerTaskExecutor())  // Add this
                 .addService(serviceImpl)
                 .build()
                 .start();
