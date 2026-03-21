@@ -103,8 +103,7 @@ public class ProviderServer {
 
         // Print the handshake line to stdout
         // Format: KITE_PLUGIN|<protocol_version>|<port>|grpc
-        System.out.println(HANDSHAKE_PREFIX + "|" + PROTOCOL_VERSION + "|" + port + "|grpc");
-        System.out.flush();
+        log.info("{}|{}|{}|grpc", HANDSHAKE_PREFIX, PROTOCOL_VERSION, port);
 
         // Start idle timeout checker
         startIdleChecker(idleTimeoutMs);

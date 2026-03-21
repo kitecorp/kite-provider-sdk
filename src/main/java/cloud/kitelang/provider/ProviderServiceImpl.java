@@ -448,35 +448,62 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
      * Extracts a detailed error message from an exception.
      * For cloud SDK exceptions (AWS, GCP, Azure), extracts the provider-specific error details
      * which are often more informative than the generic getMessage().
+     *
+     * <p>AWS SDK v2 exceptions have an {@code awsErrorDetails()} method that returns
+     * structured error information (error code, error message, HTTP status). The generic
+     * {@code getMessage()} often returns an unhelpful string like
+     * {@code " (Service: S3, Status Code: 400, Request ID: ...)"} with an empty message body.
+     * This method extracts the structured details via reflection to avoid a hard dependency
+     * on the AWS SDK.</p>
      */
-    private static String extractErrorMessage(Exception e) {
+    // Package-private for testing
+    static String extractErrorMessage(Exception e) {
         var message = e.getMessage();
 
         // Try to extract AWS SDK error details via reflection (avoids hard dependency on AWS SDK)
         try {
-            var awsErrorDetails = e.getClass().getMethod("awsErrorDetails");
-            var details = awsErrorDetails.invoke(e);
+            var awsErrorDetailsMethod = e.getClass().getMethod("awsErrorDetails");
+            var details = awsErrorDetailsMethod.invoke(e);
             if (details != null) {
-                var errorCode = details.getClass().getMethod("errorCode").invoke(details);
-                var errorMessage = details.getClass().getMethod("errorMessage").invoke(details);
-                var sdkMessage = details.getClass().getMethod("sdkHttpResponse").invoke(details);
-                var statusCode = sdkMessage != null
-                        ? sdkMessage.getClass().getMethod("statusCode").invoke(sdkMessage)
-                        : null;
+                var errorCode = (String) details.getClass().getMethod("errorCode").invoke(details);
+                var errorMessage = (String) details.getClass().getMethod("errorMessage").invoke(details);
+
+                // Extract HTTP status code from sdkHttpResponse
+                Integer statusCode = null;
+                try {
+                    var sdkHttpResponse = details.getClass().getMethod("sdkHttpResponse").invoke(details);
+                    if (sdkHttpResponse != null) {
+                        statusCode = (Integer) sdkHttpResponse.getClass().getMethod("statusCode").invoke(sdkHttpResponse);
+                    }
+                } catch (Exception httpEx) {
+                    log.debug("Could not extract HTTP status code from AWS error details", httpEx);
+                }
 
                 var sb = new StringBuilder();
-                if (errorCode != null) sb.append("[").append(errorCode).append("] ");
-                if (errorMessage != null) sb.append(errorMessage);
-                if (statusCode != null) sb.append(" (HTTP ").append(statusCode).append(")");
+                if (errorCode != null && !errorCode.isEmpty()) {
+                    sb.append("[").append(errorCode).append("] ");
+                }
+                if (errorMessage != null && !errorMessage.isEmpty()) {
+                    sb.append(errorMessage);
+                } else if (message != null && !message.isBlank()) {
+                    // errorMessage is empty but exception has a message - use it as fallback
+                    sb.append(message);
+                }
+                if (statusCode != null) {
+                    sb.append(" (HTTP ").append(statusCode).append(")");
+                }
 
                 var result = sb.toString().trim();
                 if (!result.isEmpty()) return result;
             }
-        } catch (Exception ignored) {
-            // Not an AWS exception, fall through
+        } catch (NoSuchMethodException nsme) {
+            // Not an AWS exception - fall through to default handling
+        } catch (Exception reflectionEx) {
+            log.debug("Failed to extract AWS error details via reflection from {}: {}",
+                    e.getClass().getSimpleName(), reflectionEx.getMessage());
         }
 
-        // Fall back to cause chain if message is empty
+        // Fall back to cause chain if message is empty or unhelpful
         if (message == null || message.isBlank()) {
             var cause = e.getCause();
             if (cause != null) {
