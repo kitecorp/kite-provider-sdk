@@ -101,9 +101,12 @@ public class ProviderServer {
 
         log.info("Provider server started on port {} (idle timeout: {}s)", port, idleTimeoutMs / 1000);
 
-        // Print the handshake line to stdout
+        // Print the handshake line to stdout (must use System.out, not logging,
+        // because provider logging config may suppress INFO level)
         // Format: KITE_PLUGIN|<protocol_version>|<port>|grpc
-        log.info("{}|{}|{}|grpc", HANDSHAKE_PREFIX, PROTOCOL_VERSION, port);
+        var handshake = HANDSHAKE_PREFIX + "|" + PROTOCOL_VERSION + "|" + port + "|grpc";
+        System.out.println(handshake);
+        System.out.flush();
 
         // Start idle timeout checker
         startIdleChecker(idleTimeoutMs);
