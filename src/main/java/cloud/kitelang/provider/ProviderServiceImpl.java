@@ -97,7 +97,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
         } catch (Exception e) {
             log.error("Failed to configure provider", e);
             responseObserver.onNext(ConfigureProvider.Response.newBuilder()
-                    .addDiagnostics(errorDiagnostic("Configuration failed", e.getMessage()))
+                    .addDiagnostics(errorDiagnostic("Configuration failed", extractErrorMessage(e)))
                     .build());
             responseObserver.onCompleted();
         }
@@ -126,7 +126,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Validation failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Validation error", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Validation error", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -156,7 +156,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Create failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Create failed", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Create failed", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -188,7 +188,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Read failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Read failed", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Read failed", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -218,7 +218,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Update failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Update failed", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Update failed", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -253,7 +253,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Delete failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Delete failed", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Delete failed", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -284,7 +284,7 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             }
         } catch (Exception e) {
             log.error("Plan failed", e);
-            responseBuilder.addDiagnostics(errorDiagnostic("Plan failed", e.getMessage()));
+            responseBuilder.addDiagnostics(errorDiagnostic("Plan failed", extractErrorMessage(e)));
         }
 
         responseObserver.onNext(responseBuilder.build());
@@ -442,6 +442,49 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                 .setSummary(summary)
                 .setDetail(detail != null ? detail : "")
                 .build();
+    }
+
+    /**
+     * Extracts a detailed error message from an exception.
+     * For cloud SDK exceptions (AWS, GCP, Azure), extracts the provider-specific error details
+     * which are often more informative than the generic getMessage().
+     */
+    private static String extractErrorMessage(Exception e) {
+        var message = e.getMessage();
+
+        // Try to extract AWS SDK error details via reflection (avoids hard dependency on AWS SDK)
+        try {
+            var awsErrorDetails = e.getClass().getMethod("awsErrorDetails");
+            var details = awsErrorDetails.invoke(e);
+            if (details != null) {
+                var errorCode = details.getClass().getMethod("errorCode").invoke(details);
+                var errorMessage = details.getClass().getMethod("errorMessage").invoke(details);
+                var sdkMessage = details.getClass().getMethod("sdkHttpResponse").invoke(details);
+                var statusCode = sdkMessage != null
+                        ? sdkMessage.getClass().getMethod("statusCode").invoke(sdkMessage)
+                        : null;
+
+                var sb = new StringBuilder();
+                if (errorCode != null) sb.append("[").append(errorCode).append("] ");
+                if (errorMessage != null) sb.append(errorMessage);
+                if (statusCode != null) sb.append(" (HTTP ").append(statusCode).append(")");
+
+                var result = sb.toString().trim();
+                if (!result.isEmpty()) return result;
+            }
+        } catch (Exception ignored) {
+            // Not an AWS exception, fall through
+        }
+
+        // Fall back to cause chain if message is empty
+        if (message == null || message.isBlank()) {
+            var cause = e.getCause();
+            if (cause != null) {
+                return cause.getClass().getSimpleName() + ": " + cause.getMessage();
+            }
+        }
+
+        return message != null ? message : e.getClass().getSimpleName();
     }
 
     /**
