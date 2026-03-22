@@ -47,8 +47,8 @@ dependencies {
     api 'com.fasterxml.jackson.core:jackson-databind:2.18.2'
 
     // Lombok for boilerplate reduction
-    compileOnly 'org.projectlombok:lombok:1.18.42'
-    annotationProcessor 'org.projectlombok:lombok:1.18.42'
+    compileOnly 'org.projectlombok:lombok:1.18.44'
+    annotationProcessor 'org.projectlombok:lombok:1.18.44'
 
     // SLF4J logging API
     api 'org.slf4j:slf4j-api:2.0.17'
