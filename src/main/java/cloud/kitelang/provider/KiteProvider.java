@@ -51,6 +51,7 @@ public abstract class KiteProvider {
     private final String version;
     private final String logoUrl;
     private final Map<String, ResourceTypeHandler<?>> resourceTypes = new HashMap<>();
+    private final Map<String, StandardTypeAdapter<?>> standardTypeAdapters = new HashMap<>();
     private Object config;
 
     /**
@@ -328,6 +329,36 @@ public abstract class KiteProvider {
     public void configure(Object configuration) {
         this.config = configuration;
         log.debug("Provider {} configured", name);
+    }
+
+    /**
+     * Register a standard type adapter.
+     * Called by providers that support standard library types.
+     *
+     * @param adapter the adapter mapping a standard type to a concrete provider type
+     */
+    protected void registerAdapter(StandardTypeAdapter<?> adapter) {
+        standardTypeAdapters.put(adapter.standardTypeName(), adapter);
+        log.debug("Registered standard type adapter: {} -> {}", adapter.standardTypeName(), adapter.concreteTypeName());
+    }
+
+    /**
+     * Get all registered standard type adapters.
+     *
+     * @return unmodifiable map of standard type name to adapter
+     */
+    public Map<String, StandardTypeAdapter<?>> getStandardTypeAdapters() {
+        return Collections.unmodifiableMap(standardTypeAdapters);
+    }
+
+    /**
+     * Get a standard type adapter by standard type name.
+     *
+     * @param standardTypeName the standard library type name (e.g., "Server", "Network")
+     * @return the adapter, or null if this provider does not support the given standard type
+     */
+    public StandardTypeAdapter<?> getAdapter(String standardTypeName) {
+        return standardTypeAdapters.get(standardTypeName);
     }
 
     /**
