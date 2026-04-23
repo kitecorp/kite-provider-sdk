@@ -58,6 +58,22 @@ public abstract class ResourceTypeHandler<T> {
         this.schema = Schema.toSchema(resourceClass);
     }
 
+    /**
+     * Creates a resource type handler with an explicit resource class and type name.
+     *
+     * <p>Use this constructor when the resource class does not have an {@code @TypeName}
+     * annotation (e.g. {@code Map<String, Object>} in the Terraform bridge). The schema
+     * is built as a minimal shell with just the name populated.</p>
+     *
+     * @param resourceClass the resource class
+     * @param typeName      the Kite type name for this resource
+     */
+    @SuppressWarnings("unchecked")
+    protected ResourceTypeHandler(Class<?> resourceClass, String typeName) {
+        this.resourceClass = (Class<T>) resourceClass;
+        this.schema = Schema.builder().name(typeName).build();
+    }
+
     private Class<?> resolveGenericParameter(Class<?> clazz) {
         while (clazz != null) {
             Type type = clazz.getGenericSuperclass();
