@@ -347,12 +347,22 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
 
     /**
      * Convert API Schema to proto Schema.
+     * <p>
+     * Handlers built via {@code ResourceTypeHandler(Class, String)} — e.g. the
+     * Terraform bridge, whose real schemas come from the wrapped TF provider —
+     * carry a shell schema whose properties set is null; serve it as an empty
+     * block instead of failing the whole GetProviderSchema call.
      */
     private cloud.kitelang.proto.v1.Schema convertSchema(Schema apiSchema) {
         var schemaBuilder = cloud.kitelang.proto.v1.Schema.newBuilder()
                 .setVersion(1);
 
         var blockBuilder = Block.newBuilder();
+
+        if (apiSchema.getProperties() == null) {
+            schemaBuilder.setBlock(blockBuilder.build());
+            return schemaBuilder.build();
+        }
 
         for (cloud.kitelang.api.resource.Property property : apiSchema.getProperties()) {
             var propBuilder = cloud.kitelang.proto.v1.Property.newBuilder()

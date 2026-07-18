@@ -288,6 +288,22 @@ class ProviderServiceStateRoundTripTest {
     }
 
     @Test
+    @DisplayName("getProviderSchema must serve handlers with shell schemas (no properties) without failing")
+    void getProviderSchemaServesShellSchemas() throws Exception {
+        // Handlers built via ResourceTypeHandler(Class, String) — like the
+        // Terraform bridge — carry a schema with a name but null properties
+        var stub = serve(new LegacyBucketHandler());
+
+        var response = stub.getProviderSchema(
+                cloud.kitelang.proto.v1.GetProviderSchema.Request.getDefaultInstance());
+
+        assertTrue(response.getResourceSchemasMap().containsKey("Bucket"),
+                "schema map should contain the registered type, got: "
+                        + response.getResourceSchemasMap().keySet());
+        assertEquals(0, response.getResourceSchemasMap().get("Bucket").getBlock().getPropertiesCount());
+    }
+
+    @Test
     @DisplayName("ResourceContext normalizes null private data to empty and defaults the return value")
     void resourceContextDefaults() {
         var empty = ResourceContext.<Bucket>empty();
