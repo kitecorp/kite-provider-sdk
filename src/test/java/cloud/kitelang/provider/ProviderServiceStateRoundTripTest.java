@@ -104,6 +104,18 @@ class ProviderServiceStateRoundTripTest {
             // must echo the incoming bytes back unchanged by default.
             return true;
         }
+
+        @Override
+        public Bucket importResource(String importId, ResourceContext<Bucket> context) {
+            observedImportId = importId;
+            if ("missing".equals(importId)) {
+                return null; // nothing found for this id
+            }
+            context.returnPrivateData("imported-private".getBytes(StandardCharsets.UTF_8));
+            return new Bucket(importId, "imported-region");
+        }
+
+        String observedImportId;
     }
 
     /** Handler that only implements the legacy single-argument methods. */
@@ -285,6 +297,73 @@ class ProviderServiceStateRoundTripTest {
                 .build());
         assertEquals(0, deleteResponse.getDiagnosticsCount());
         assertEquals("engine-stored", deleteResponse.getPrivateData().toStringUtf8());
+    }
+
+    @Test
+    @DisplayName("import should deliver the id and return handler state + private bytes")
+    void importDeliversIdAndReturnsStateWithPrivateData() throws Exception {
+        var handler = new StatefulBucketHandler();
+        var stub = serve(handler);
+
+        var response = stub.importResource(cloud.kitelang.proto.v1.ImportResource.Request.newBuilder()
+                .setTypeName("Bucket")
+                .setImportId("adopted-bucket")
+                .build());
+
+        assertEquals(0, response.getDiagnosticsCount(),
+                "unexpected diagnostics: " + response.getDiagnosticsList());
+        assertEquals("adopted-bucket", handler.observedImportId);
+        assertEquals(new Bucket("adopted-bucket", "imported-region"), decode(response.getNewState()));
+        assertEquals("imported-private", response.getPrivateData().toStringUtf8());
+    }
+
+    @Test
+    @DisplayName("import miss (handler returns null) yields an empty state and no diagnostics")
+    void importMissYieldsEmptyState() throws Exception {
+        var stub = serve(new StatefulBucketHandler());
+
+        var response = stub.importResource(cloud.kitelang.proto.v1.ImportResource.Request.newBuilder()
+                .setTypeName("Bucket")
+                .setImportId("missing")
+                .build());
+
+        // Empty newState signals "nothing imported" so the engine can fall
+        // back to the query-read path without treating it as an error
+        assertEquals(0, response.getDiagnosticsCount(),
+                "unexpected diagnostics: " + response.getDiagnosticsList());
+        assertEquals(ByteString.EMPTY, response.getNewState().getMsgpack());
+    }
+
+    @Test
+    @DisplayName("handlers without an importResource override report import as unsupported via empty state")
+    void importUnsupportedByDefault() throws Exception {
+        var stub = serve(new LegacyBucketHandler());
+
+        var response = stub.importResource(cloud.kitelang.proto.v1.ImportResource.Request.newBuilder()
+                .setTypeName("Bucket")
+                .setImportId("anything")
+                .build());
+
+        assertEquals(0, response.getDiagnosticsCount(),
+                "unexpected diagnostics: " + response.getDiagnosticsList());
+        assertEquals(ByteString.EMPTY, response.getNewState().getMsgpack());
+    }
+
+    @Test
+    @DisplayName("import of an unknown resource type returns an error diagnostic naming it")
+    void importUnknownTypeReturnsErrorDiagnostic() throws Exception {
+        var stub = serve(new StatefulBucketHandler());
+
+        var response = stub.importResource(cloud.kitelang.proto.v1.ImportResource.Request.newBuilder()
+                .setTypeName("NotAType")
+                .setImportId("anything")
+                .build());
+
+        assertEquals(1, response.getDiagnosticsCount());
+        assertEquals(cloud.kitelang.proto.v1.Diagnostic.Severity.ERROR,
+                response.getDiagnostics(0).getSeverity());
+        assertTrue(response.getDiagnostics(0).getDetail().contains("NotAType"),
+                "diagnostic should name the unknown type, got: " + response.getDiagnostics(0));
     }
 
     @Test

@@ -186,6 +186,28 @@ public abstract class ResourceTypeHandler<T> {
     }
 
     /**
+     * Import (adopt) a pre-existing cloud resource by its identifier — the
+     * counterpart of Terraform's {@code ImportResourceState}. Unlike
+     * {@link #read(Object, ResourceContext)}, which refreshes from a known
+     * state, import starts from nothing but a provider-interpreted id
+     * (instance id, ARN, resource name, ...).
+     *
+     * <p>The default returns {@code null}: import is not supported and callers
+     * fall back to a query-based read. Handlers that do support it return the
+     * full resource state and hand private bytes to persist back through the
+     * context, exactly like {@link #create(Object, ResourceContext)}.</p>
+     *
+     * @param importId the provider-interpreted identifier of the resource to adopt
+     * @param context  private bytes out (nothing is stored yet on import)
+     * @return the imported resource state, or null when import is unsupported
+     *         or nothing exists for the id
+     * @see ResourceContext
+     */
+    public T importResource(String importId, ResourceContext<T> context) {
+        return null;
+    }
+
+    /**
      * Validate resource configuration before create/update.
      * Override to add custom validation.
      *

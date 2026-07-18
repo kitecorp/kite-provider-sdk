@@ -202,6 +202,43 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
     }
 
     @Override
+    public void importResource(ImportResource.Request request,
+                               StreamObserver<ImportResource.Response> responseObserver) {
+        touchActivity();
+        log.debug("ImportResource called for type: {} id: {}", request.getTypeName(), request.getImportId());
+        var startTime = System.currentTimeMillis();
+
+        var responseBuilder = ImportResource.Response.newBuilder();
+
+        try {
+            ResourceTypeHandler<Object> resourceType = provider.getResourceType(request.getTypeName());
+            if (resourceType == null) {
+                responseBuilder.addDiagnostics(errorDiagnostic(
+                        "Unknown resource type",
+                        "Resource type '" + request.getTypeName() + "' not found"));
+            } else {
+                // Nothing is stored yet for an adopted resource, so the context
+                // starts empty; the handler returns private bytes to persist
+                var context = ResourceContext.of(null, null);
+                Object imported = resourceType.importResource(request.getImportId(), context);
+                if (imported != null) {
+                    // A null result (unsupported or nothing found for the id) leaves
+                    // newState empty so callers can fall back to a query-based read
+                    responseBuilder.setNewState(toResourcePayload(imported));
+                    responseBuilder.setPrivateData(ByteString.copyFrom(context.privateDataToReturn()));
+                    log.info("Imported {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
+                }
+            }
+        } catch (Exception e) {
+            log.error("Import failed", e);
+            responseBuilder.addDiagnostics(errorDiagnostic("Import failed", extractErrorMessage(e)));
+        }
+
+        responseObserver.onNext(responseBuilder.build());
+        responseObserver.onCompleted();
+    }
+
+    @Override
     public void updateResource(UpdateResource.Request request,
                                StreamObserver<UpdateResource.Response> responseObserver) {
         touchActivity();
