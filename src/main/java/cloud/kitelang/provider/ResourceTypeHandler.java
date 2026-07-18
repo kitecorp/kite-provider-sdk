@@ -128,6 +128,63 @@ public abstract class ResourceTypeHandler<T> {
      */
     public abstract boolean delete(T resource);
 
+    // -----------------------------------------------------------------
+    // Context-carrying overloads (engine-stored prior state + private bytes)
+    //
+    // The gRPC service layer always dispatches through these. The defaults
+    // delegate to the single-argument methods above, so handlers that don't
+    // need stored state keep working unchanged. Handlers that do need it
+    // (e.g. the Terraform bridge) override these instead.
+    // -----------------------------------------------------------------
+
+    /**
+     * Create a new resource, with access to engine-stored state.
+     *
+     * @param resource The resource configuration
+     * @param context  Prior state + private bytes in, updated private bytes out
+     * @return The created resource with any cloud-assigned values populated
+     * @see ResourceContext
+     */
+    public T create(T resource, ResourceContext<T> context) {
+        return create(resource);
+    }
+
+    /**
+     * Read the current state of a resource, with access to engine-stored state.
+     *
+     * @param resource The resource to read (with identifying fields populated)
+     * @param context  Private bytes in, updated private bytes out
+     * @return The current state, or null if not found
+     * @see ResourceContext
+     */
+    public T read(T resource, ResourceContext<T> context) {
+        return read(resource);
+    }
+
+    /**
+     * Update an existing resource, with access to engine-stored state.
+     *
+     * @param resource The desired resource state
+     * @param context  Prior state + private bytes in, updated private bytes out
+     * @return The updated resource state
+     * @see ResourceContext
+     */
+    public T update(T resource, ResourceContext<T> context) {
+        return update(resource);
+    }
+
+    /**
+     * Delete a resource, with access to engine-stored state.
+     *
+     * @param resource The resource to delete (the engine passes the stored prior state)
+     * @param context  Private bytes in, updated private bytes out
+     * @return true if deleted, false if not found
+     * @see ResourceContext
+     */
+    public boolean delete(T resource, ResourceContext<T> context) {
+        return delete(resource);
+    }
+
     /**
      * Validate resource configuration before create/update.
      * Override to add custom validation.

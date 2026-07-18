@@ -57,6 +57,8 @@ dependencies {
     testImplementation platform('org.junit:junit-bom:6.0.1')
     testImplementation 'org.junit.jupiter:junit-jupiter'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+    // In-process gRPC transport for round-trip tests through the service layer
+    testImplementation 'io.grpc:grpc-inprocess:1.78.0'
 }
 
 java {

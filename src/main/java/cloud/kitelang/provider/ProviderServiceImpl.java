@@ -150,8 +150,12 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                         "Resource type '" + request.getTypeName() + "' not found"));
             } else {
                 Object resource = fromResourcePayload(request.getConfig(), resourceType.getResourceClass());
-                Object created = resourceType.create(resource);
+                var context = ResourceContext.of(
+                        fromResourcePayload(request.getPriorState(), resourceType.getResourceClass()),
+                        request.getPrivateData().toByteArray());
+                Object created = resourceType.create(resource, context);
                 responseBuilder.setNewState(toResourcePayload(created));
+                responseBuilder.setPrivateData(ByteString.copyFrom(context.privateDataToReturn()));
                 log.info("Created {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
@@ -180,10 +184,12 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                         "Resource type '" + request.getTypeName() + "' not found"));
             } else {
                 Object resource = fromResourcePayload(request.getCurrentState(), resourceType.getResourceClass());
-                Object current = resourceType.read(resource);
+                var context = ResourceContext.of(null, request.getPrivateData().toByteArray());
+                Object current = resourceType.read(resource, context);
                 if (current != null) {
                     responseBuilder.setNewState(toResourcePayload(current));
                 }
+                responseBuilder.setPrivateData(ByteString.copyFrom(context.privateDataToReturn()));
                 log.info("Read {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
@@ -212,8 +218,12 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                         "Resource type '" + request.getTypeName() + "' not found"));
             } else {
                 Object resource = fromResourcePayload(request.getPlannedState(), resourceType.getResourceClass());
-                Object updated = resourceType.update(resource);
+                var context = ResourceContext.of(
+                        fromResourcePayload(request.getPriorState(), resourceType.getResourceClass()),
+                        request.getPrivateData().toByteArray());
+                Object updated = resourceType.update(resource, context);
                 responseBuilder.setNewState(toResourcePayload(updated));
+                responseBuilder.setPrivateData(ByteString.copyFrom(context.privateDataToReturn()));
                 log.info("Updated {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
@@ -242,13 +252,15 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                         "Resource type '" + request.getTypeName() + "' not found"));
             } else {
                 Object resource = fromResourcePayload(request.getPriorState(), resourceType.getResourceClass());
-                boolean deleted = resourceType.delete(resource);
+                var context = ResourceContext.of(null, request.getPrivateData().toByteArray());
+                boolean deleted = resourceType.delete(resource, context);
                 if (!deleted) {
                     responseBuilder.addDiagnostics(cloud.kitelang.proto.v1.Diagnostic.newBuilder()
                             .setSeverity(cloud.kitelang.proto.v1.Diagnostic.Severity.WARNING)
                             .setSummary("Resource not found")
                             .build());
                 }
+                responseBuilder.setPrivateData(ByteString.copyFrom(context.privateDataToReturn()));
                 log.info("Deleted {} ({}ms)", request.getTypeName(), System.currentTimeMillis() - startTime);
             }
         } catch (Exception e) {
