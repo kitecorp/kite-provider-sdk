@@ -406,7 +406,10 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
                     .setName(property.name())
                     .setType(ByteString.copyFromUtf8(mapType(property.type(), property.typeClass())))
                     .setRequired(true) // Default to required
-                    .setComputed(property.isCloud());
+                    .setComputed(property.isCloud())
+                    // The engine masks these in rendered plans/diffs; the flag
+                    // must survive the wire or bridged sensitivity is lost
+                    .setSensitive(property.isSensitive());
 
             // Include default value if present
             if (property.defaultValue() != null) {
