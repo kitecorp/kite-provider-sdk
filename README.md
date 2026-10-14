@@ -448,7 +448,7 @@ The SDK includes a documentation generator that creates HTML and Markdown refere
 
 ### Automatic Generation (Gradle Plugin)
 
-If you're using the `kite-provider-gradle-plugin`, documentation is generated automatically during build:
+If you're using the `kite-provider-gradle-plugin`, its `generateProviderDocs` task generates documentation:
 
 ```groovy
 plugins {
@@ -459,13 +459,13 @@ kiteProvider {
     name = 'my-provider'
 
     // Documentation options (all optional, shown with defaults)
-    docsEnabled = true                    // Generate docs during build
-    docsFormats = 'html,markdown'         // Output formats
-    docsOutputDir = 'build/docs/provider' // Output directory
+    docsEnabled = true                    // Register generateProviderDocs
+    docsFormats = 'html,markdown,schemas' // Output formats
+    docsOutputDir = 'docs'                // Output directory
 }
 ```
 
-Run `./gradlew generateProviderDocs` to generate documentation, or it runs automatically after `./gradlew build`.
+Run `./gradlew generateProviderDocs` to generate documentation. It runs only when called: `build` and `installDist` never write `docs/`.
 
 ### Programmatic Generation
 
