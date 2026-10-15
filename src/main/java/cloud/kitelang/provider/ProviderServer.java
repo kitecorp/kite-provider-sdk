@@ -1,11 +1,13 @@
 package cloud.kitelang.provider;
 
 import io.grpc.Server;
-import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptors;
+import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import lombok.extern.slf4j.Slf4j;
 
 import java.io.IOException;
-import java.net.ServerSocket;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.time.Duration;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -16,6 +18,10 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Uses a handshake protocol where the engine sets environment variables
  * (magic cookie, protocol version) and the provider outputs its port to stdout.</p>
+ *
+ * <p>The server listens on 127.0.0.1 only and serves only calls that carry the
+ * magic cookie as gRPC metadata (see {@link MagicCookieAuth}), because the provider
+ * holds the user's cloud credentials.</p>
  *
  * <p>Supports persistent mode with idle timeout - provider will auto-shutdown
  * after a configurable period of inactivity.</p>
@@ -28,6 +34,8 @@ public class ProviderServer {
     private static final String PROTOCOL_VERSION_ENV = "KITE_PLUGIN_PROTOCOL_VERSION";
     private static final String IDLE_TIMEOUT_ENV = "KITE_PLUGIN_IDLE_TIMEOUT";
     private static final long DEFAULT_IDLE_TIMEOUT_MS = Duration.ofMinutes(30).toMillis();
+    /** The address the engine connects to; never the wildcard, which would expose the provider to the network. */
+    private static final InetAddress LOOPBACK = InetAddress.ofLiteral("127.0.0.1");
 
     private final KiteProvider provider;
     private Server server;
@@ -86,20 +94,9 @@ public class ProviderServer {
             }
         }
 
-        // Find an available port
-        int port = findAvailablePort();
+        var port = start(magicCookie, idleTimeoutMs).getPort();
 
-        // Create the gRPC service implementation with idle tracking
-        serviceImpl = new ProviderServiceImpl(provider, idleTimeoutMs);
-
-        // Build and start the server
-        server = ServerBuilder.forPort(port)
-                .executor(Executors.newVirtualThreadPerTaskExecutor())  // Add this
-                .addService(serviceImpl)
-                .build()
-                .start();
-
-        log.info("Provider server started on port {} (idle timeout: {}s)", port, idleTimeoutMs / 1000);
+        log.info("Provider server started on {}:{} (idle timeout: {}s)", LOOPBACK.getHostAddress(), port, idleTimeoutMs / 1000);
 
         // Print the handshake line to stdout (must use System.out, not logging,
         // because provider logging config may suppress INFO level)
@@ -123,6 +120,21 @@ public class ProviderServer {
 
         // Block until shutdown
         server.awaitTermination();
+    }
+
+    /**
+     * Starts the gRPC server on a free port of 127.0.0.1, refusing calls that do not
+     * carry {@code magicCookie}. Binding port 0 lets the operating system pick the
+     * port at bind time, so no other process can take it between choosing and binding.
+     */
+    Server start(String magicCookie, long idleTimeoutMs) throws IOException {
+        serviceImpl = new ProviderServiceImpl(provider, idleTimeoutMs);
+        server = NettyServerBuilder.forAddress(new InetSocketAddress(LOOPBACK, 0))
+                .executor(Executors.newVirtualThreadPerTaskExecutor())
+                .addService(ServerInterceptors.intercept(serviceImpl, MagicCookieAuth.require(magicCookie)))
+                .build()
+                .start();
+        return server;
     }
 
     /**
@@ -168,16 +180,6 @@ public class ProviderServer {
             if (!server.awaitTermination(30, TimeUnit.SECONDS)) {
                 server.shutdownNow();
             }
-        }
-    }
-
-    /**
-     * Find an available port for the server.
-     */
-    private int findAvailablePort() throws IOException {
-        try (ServerSocket socket = new ServerSocket(0)) {
-            socket.setReuseAddress(true);
-            return socket.getLocalPort();
         }
     }
 

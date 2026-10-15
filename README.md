@@ -401,17 +401,28 @@ The `validValues` also populate the "Valid Values" column in the generated HTML 
 The SDK implements a handshake protocol for secure provider launching:
 
 1. Engine sets environment variables:
-   - `KITE_PLUGIN_MAGIC_COOKIE` - Random authentication token
+   - `KITE_PLUGIN_MAGIC_COOKIE` - Random secret, a new one for each provider process
    - `KITE_PLUGIN_PROTOCOL_VERSION` - Protocol version (1)
 
-2. Provider validates cookie and starts gRPC server on random port
+2. Provider exits unless both are set, then starts its gRPC server on a free port of
+   `127.0.0.1` (never on all interfaces)
 
 3. Provider outputs handshake line to stdout:
    ```
    KITE_PLUGIN|1|<port>|grpc
    ```
 
-4. Engine connects to `localhost:<port>`
+4. Engine connects to `127.0.0.1:<port>` and sends the cookie as gRPC metadata
+   `kite-plugin-magic-cookie: <cookie>` on every call
+
+5. Provider rejects any call without that metadata, or with a different value, with
+   `UNAUTHENTICATED` before the call reaches the provider code
+
+Since SDK 0.4.0. Providers built with 0.3.0 or earlier listen on every interface and
+only check that the cookie variable is set at startup. An engine that does not send the
+cookie cannot use a provider built with 0.4.0, so the engine must be upgraded first.
+`MagicCookieAuth` holds both sides of the check; a provider written in another
+language must check the same metadata key.
 
 ## Distribution
 
@@ -520,6 +531,7 @@ kite-provider-sdk/
     ├── KiteProvider.java      # Base provider class
     ├── ResourceTypeHandler.java # Resource type abstraction
     ├── ProviderServer.java    # gRPC server and handshake
+    ├── MagicCookieAuth.java   # Cookie metadata: engine attaches, server checks
     ├── ProviderServiceImpl.java # gRPC service implementation
     ├── Diagnostic.java        # Error/warning reporting
     ├── ProviderUtils.java     # Utility methods
