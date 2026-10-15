@@ -103,6 +103,14 @@ class ProviderServerSecurityTest {
                 ex.getStatus().getDescription());
     }
 
+    /** A blank expected cookie would accept every call that sends a blank one. */
+    @Test
+    void requiringABlankCookie_isRefused() {
+        var ex = assertThrows(IllegalArgumentException.class, () -> MagicCookieAuth.require(" "));
+
+        assertEquals("The magic cookie a provider requires must not be blank", ex.getMessage());
+    }
+
     static Stream<Named<MethodDescriptor<?, ?>>> everyProviderRpc() {
         return ProviderGrpc.getServiceDescriptor().getMethods().stream()
                 .map(method -> Named.of(method.getBareMethodName(), method));

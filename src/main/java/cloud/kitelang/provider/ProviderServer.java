@@ -48,15 +48,16 @@ public class ProviderServer {
 
     /**
      * Start the provider server.
-     * This method validates the magic cookie, starts the gRPC server,
+     * This method checks that the magic cookie variable is set, starts the gRPC server
+     * (which then requires that cookie on every call),
      * and prints the handshake line.
      *
      * @throws IOException if server cannot start
      */
     public void serve() throws IOException, InterruptedException {
-        // Validate magic cookie
+        // Without the cookie variable nothing could ever call this server
         String magicCookie = System.getenv(MAGIC_COOKIE_ENV);
-        if (magicCookie == null || magicCookie.isEmpty()) {
+        if (magicCookie == null || magicCookie.isBlank()) {
             log.error("Missing {} environment variable. This plugin must be launched by Kite.", MAGIC_COOKIE_ENV);
             System.err.println("This is a Kite provider plugin. It must be launched by the Kite engine.");
             System.exit(1);

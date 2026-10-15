@@ -53,6 +53,9 @@ public final class MagicCookieAuth {
      * counts as activity for the idle timeout.
      */
     public static ServerInterceptor require(String expectedCookie) {
+        if (expectedCookie == null || expectedCookie.isBlank()) {
+            throw new IllegalArgumentException("The magic cookie a provider requires must not be blank");
+        }
         var expected = expectedCookie.getBytes(StandardCharsets.UTF_8);
         return new ServerInterceptor() {
             @Override
