@@ -1,6 +1,8 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
+    // Applied at the end of this file, and only when this repository is built on its own
+    id 'org.jreleaser' version '1.23.0' apply false
 }
 
 group = 'cloud.kitelang'
@@ -12,6 +14,7 @@ publishing {
             from components.java
             artifactId = 'kite-provider-sdk'
 
+            // Maven Central refuses a POM without name, description, url, licenses, developers and scm
             pom {
                 name = 'Kite Provider SDK'
                 description = 'SDK for building Kite infrastructure providers'
@@ -22,20 +25,43 @@ publishing {
                         url = 'https://www.apache.org/licenses/LICENSE-2.0'
                     }
                 }
+                developers {
+                    developer {
+                        id = 'kitecorp'
+                        name = 'Kite Team'
+                        url = 'https://github.com/kitecorp'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:https://github.com/kitecorp/kite-provider-sdk.git'
+                    developerConnection = 'scm:git:ssh://git@github.com/kitecorp/kite-provider-sdk.git'
+                    url = 'https://github.com/kitecorp/kite-provider-sdk'
+                }
             }
+        }
+    }
+
+    repositories {
+        // The publish workflow stages the release here, and JReleaser uploads it from here
+        maven {
+            name = 'stagingDeploy'
+            url = layout.buildDirectory.dir('staging-deploy')
         }
     }
 }
 
 repositories {
     mavenCentral()
-    mavenLocal()
 }
 
 dependencies {
-    // Use 'api' so provider implementors get transitive access
-    api project(':kite-proto')
-    api project(':kite-api')
+    // Use 'api' so provider implementors get transitive access.
+    // Inside the kite superproject, and the SDK build in kite-providers, kite-api and kite-proto are
+    // sibling projects. Built on its own, as the publish workflow does, the SDK compiles against
+    // their releases on Maven Central, and the published POM names these versions: publish them
+    // first, then raise the versions here.
+    api findProject(':kite-proto') ?: 'cloud.kitelang:kite-proto:0.2.0'
+    api findProject(':kite-api') ?: 'cloud.kitelang:kite-api:0.2.0'
 
     // gRPC Netty transport for provider servers
     api 'io.grpc:grpc-netty-shaded:1.78.0'
@@ -65,8 +91,50 @@ java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(25))
     }
+    // Maven Central refuses a jar without its sources and javadoc jars
+    withSourcesJar()
+    withJavadocJar()
 }
 
 test {
     useJUnitPlatform()
+}
+
+// JReleaser signs and checksums the staged files and uploads them to Maven Central through the
+// Central Portal. Only the publish workflow uses it, and that builds this repository on its own.
+// In a multi-project build (the kite superproject, or the SDK build in kite-providers) each project
+// that applies JReleaser loads its own copy of it, and two copies fail the build with
+// "Banner$Inject_ cannot be cast to Banner".
+if (project == rootProject) {
+    apply plugin: 'org.jreleaser'
+
+    jreleaser {
+        signing {
+            active = 'ALWAYS'
+            armored = true
+            mode = 'MEMORY'  // the key comes from the JRELEASER_GPG_* environment variables
+        }
+        deploy {
+            maven {
+                mavenCentral {
+                    sonatype {
+                        active = 'ALWAYS'
+                        url = 'https://central.sonatype.com/api/v1/publisher'
+                        stagingRepository('build/staging-deploy')
+                        // Also checks each POM, and that the sources and javadoc jars are staged,
+                        // against Maven Central's rules before anything is uploaded
+                        applyMavenCentralRules = true
+                        retryDelay = 30
+                        maxRetries = 60
+                    }
+                }
+            }
+        }
+    }
+
+    tasks.named('jreleaserDeploy') {
+        dependsOn 'publishAllPublicationsToStagingDeployRepository'
+        // JReleaser reads the project while the task runs, which the configuration cache refuses
+        notCompatibleWithConfigurationCache('JReleaser reads Task.project at execution time')
+    }
 }

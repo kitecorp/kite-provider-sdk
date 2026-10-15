@@ -12,12 +12,12 @@ import java.util.Map;
  * <p>Structure:</p>
  * <pre>
  * docs/
- * ├── index.html       <- Global landing (provider selector)
- * ├── styles.css       <- Shared styles
- * ├── scripts.js       <- Shared scripts
- * ├── providers.json   <- Provider manifest
+ * ├── index.html       &lt;- Global landing (provider selector)
+ * ├── styles.css       &lt;- Shared styles
+ * ├── scripts.js       &lt;- Shared scripts
+ * ├── providers.json   &lt;- Provider manifest
  * └── {provider}/
- *     ├── index.html   <- Provider landing (version/resource selector)
+ *     ├── index.html   &lt;- Provider landing (version/resource selector)
  *     ├── versions.json
  *     └── {version}/
  *         ├── manifest.json

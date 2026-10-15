@@ -1,0 +1,103 @@
+# Publishes this library to Maven Central through the Sonatype Central Portal (kitecorp/kite-provider-sdk#6).
+#
+# It runs only when started by hand (Actions > Publish to Maven Central > Run workflow) on main, and
+# publishes the version in build.gradle. Maven Central never accepts the same version twice, so raise
+# the version before each release. kite-provider-sdk depends on kite-api and kite-proto: publish those
+# two first. The README's "Releasing" section has the steps.
+#
+# JReleaser signs every staged file, writes its checksums, checks the POM and the sources and javadoc
+# jars against Maven Central's rules, uploads the bundle and waits until Central has published it.
+# This is the setup kite-provider-gradle-plugin publishes with, and it uses the same four secrets, so
+# one set (in each repository, or as organisation secrets) serves every Kite library:
+#   MAVEN_USERNAME   Central Portal user token, username part (central.sonatype.com/account)
+#   MAVEN_PASSWORD   Central Portal user token, password part
+#   GPG_PUBLIC_KEY   gpg --armor --export <key id>; the key must be on a public keyserver
+#   GPG_PRIVATE_KEY  gpg --armor --export-secret-keys <key id>; a key without a passphrase
+
+name: Publish to Maven Central
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  # One release at a time; a second run of the same version would only be refused by Central
+  group: publish-maven-central
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Publish to Maven Central
+    runs-on: ubuntu-latest
+    # JReleaser waits up to 30 minutes for Central to validate the upload and up to 30 more for it
+    # to publish (retryDelay 30 s x maxRetries 60 in build.gradle)
+    timeout-minutes: 75
+
+    steps:
+      - name: Refuse to publish from a branch other than main
+        if: github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Releases are published from main, after review. This run is on ${GITHUB_REF}."
+          exit 1
+
+      - name: Check that the publishing secrets are set
+        env:
+          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+        # An organisation secret that this repository may not read arrives as an empty string
+        run: |
+          missing=""
+          for name in MAVEN_USERNAME MAVEN_PASSWORD GPG_PUBLIC_KEY GPG_PRIVATE_KEY; do
+            if [ -z "${!name}" ]; then
+              missing="${missing} ${name}"
+            fi
+          done
+          if [ -n "${missing}" ]; then
+            echo "::error::Secrets missing or empty for this repository:${missing}"
+            exit 1
+          fi
+
+      - name: Check out
+        uses: actions/checkout@v7
+        with:
+          # JReleaser reads the repository's git data; the plugin's working publish uses a full clone too
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Set up JDK 25
+        uses: actions/setup-java@v6
+        with:
+          java-version: '25'
+          distribution: 'temurin'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          # A release builds from scratch. The action also checks the wrapper jar (validate-wrappers).
+          cache-disabled: true
+
+      - name: Build and test
+        run: ./gradlew build
+
+      - name: Deploy to Maven Central
+        # jreleaserDeploy first stages the publication in build/staging-deploy
+        run: ./gradlew jreleaserDeploy
+        env:
+          JRELEASER_MAVENCENTRAL_SONATYPE_USERNAME: ${{ secrets.MAVEN_USERNAME }}
+          JRELEASER_MAVENCENTRAL_SONATYPE_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
+          JRELEASER_GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
+          JRELEASER_GPG_SECRET_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+
+      - name: Upload the JReleaser log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: jreleaser-output
+          path: |
+            build/jreleaser/trace.log
+            build/jreleaser/output.properties
+          if-no-files-found: ignore
