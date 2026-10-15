@@ -538,6 +538,7 @@ kite-provider-sdk/
 ├── build.gradle
 ├── settings.gradle
 ├── README.md
+├── LICENSE                    # Apache License 2.0, also packed into every jar
 ├── .github/workflows/
 │   └── publish-maven-central.yml # Releases the SDK, see Releasing
 └── src/main/java/cloud/kitelang/provider/
@@ -593,3 +594,7 @@ repository or from the organisation:
 To see what a release would upload, without publishing anything, run
 `./gradlew publishAllPublicationsToStagingDeployRepository` and look in `build/staging-deploy`. JReleaser
 adds the `.asc` signatures when it deploys.
+
+## License
+
+Apache License 2.0; see [LICENSE](LICENSE).

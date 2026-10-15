@@ -96,6 +96,14 @@ java {
     withJavadocJar()
 }
 
+// Every jar, sources and javadoc included, carries the licence as META-INF/LICENSE: the Apache
+// License asks that anyone who receives a copy of the work also receives the licence (section 4)
+tasks.withType(Jar).configureEach {
+    from(layout.projectDirectory.file('LICENSE')) {
+        into 'META-INF'
+    }
+}
+
 test {
     useJUnitPlatform()
 }
