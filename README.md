@@ -426,28 +426,22 @@ language must check the same metadata key.
 
 ## Distribution
 
-### Registry Distribution
+Users list providers under `dependencies` in `kitefile.yml`. The official providers (`aws`, `azure`,
+`files`, `gcp`) need only a name and version; they come from the
+[kitecorp/kite-providers](https://github.com/kitecorp/kite-providers/releases) GitHub releases.
 
-Providers can be published to the Kite registry:
-
-```yaml
-# kitefile.yaml
-providers:
-  - name: aws
-    version: "1.0.0"
-```
-
-### Git Distribution
-
-Providers can be distributed via Git:
+Any other provider is installed from its git repository:
 
 ```yaml
-# kitefile.yaml
-providers:
+# kitefile.yml
+dependencies:
   - name: custom
     git: "github.com/org/kite-provider-custom"
     ref: "v1.0.0"
 ```
+
+Kite downloads the repository's GitHub release for that ref when it has a `custom.zip` asset (the name
+from the entry), and otherwise clones the ref and builds it.
 
 ## Example
 
