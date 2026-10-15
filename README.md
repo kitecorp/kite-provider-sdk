@@ -27,11 +27,28 @@ Engine                          Provider (any language)
 
 ### 1. Add Dependency
 
+The SDK is on Maven Central as `cloud.kitelang:kite-provider-sdk`, and brings `cloud.kitelang:kite-api` and `cloud.kitelang:kite-proto` with it. It is compiled for Java 25. The `cloud.kitelang.provider` Gradle plugin does not add it, so a build that uses the plugin needs these lines too:
+
 ```groovy
+repositories {
+    mavenCentral()
+}
+
 dependencies {
-    implementation project(':kite-provider-sdk')
+    implementation 'cloud.kitelang:kite-provider-sdk:0.4.0'
+    // Lists your ResourceTypeHandler classes in META-INF/kite/resource-types.txt,
+    // which is where KiteProvider finds them
+    annotationProcessor 'cloud.kitelang:kite-provider-sdk:0.4.0'
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(25))
+    }
 }
 ```
+
+A provider built with 0.4.0 needs an engine that sends the magic cookie on every call; see [Handshake Protocol](#handshake-protocol).
 
 ### 2. Define Your Resource
 
@@ -273,12 +290,12 @@ public class MyProvider extends KiteProvider {
 **GraalVM Native-Image Support:**
 
 The SDK includes an annotation processor that generates `META-INF/kite/resource-types.txt` at compile time.
-Add the SDK as an annotation processor in your build.gradle:
+It runs when the SDK is also on the annotation processor path, as in [Add Dependency](#1-add-dependency):
 
 ```groovy
 dependencies {
-    implementation project(':kite-provider-sdk')
-    annotationProcessor project(':kite-provider-sdk')  // Generates manifest for GraalVM
+    implementation 'cloud.kitelang:kite-provider-sdk:0.4.0'
+    annotationProcessor 'cloud.kitelang:kite-provider-sdk:0.4.0'
 }
 ```
 
@@ -519,7 +536,10 @@ java -cp my-provider.jar cloud.kitelang.provider.docgen.DocGeneratorCli \
 ```
 kite-provider-sdk/
 ├── build.gradle
+├── settings.gradle
 ├── README.md
+├── .github/workflows/
+│   └── publish-maven-central.yml # Releases the SDK, see Releasing
 └── src/main/java/cloud/kitelang/provider/
     ├── package-info.java      # Package documentation
     ├── KiteProvider.java      # Base provider class
@@ -533,3 +553,43 @@ kite-provider-sdk/
         ├── DocGenerator.java  # Core documentation generator
         └── DocGeneratorCli.java # CLI wrapper
 ```
+
+## Building
+
+`./gradlew build` builds and tests the SDK on its own, with JDK 25. Built this way it takes kite-api and
+kite-proto from Maven Central, at the versions `build.gradle` names. Inside the kite superproject, and in
+the SDK build of kite-providers, it uses those two as sibling projects instead.
+
+## Releasing
+
+Releases go to Maven Central as `cloud.kitelang:kite-provider-sdk` through the **Publish to Maven Central**
+workflow (`.github/workflows/publish-maven-central.yml`), which runs only when started by hand. The
+published POM depends on the kite-api and kite-proto versions that `build.gradle` names, and the release
+builds against those versions from Maven Central, so they must be published before the SDK.
+
+1. If kite-api or kite-proto changed, release them first (their READMEs have the same steps), then
+   raise their versions in this `build.gradle`.
+2. Raise `version` in `build.gradle`. Maven Central never accepts the same version twice.
+3. Merge to `main`, then start the workflow on `main`, from the Actions tab or with
+   `gh workflow run publish-maven-central.yml --repo kitecorp/kite-provider-sdk --ref main`.
+   It refuses to run on any other branch.
+4. The run builds and tests the SDK and stages it in `build/staging-deploy`. JReleaser then signs every
+   file, writes its checksums, checks the POM and the sources and javadoc jars against Maven Central's
+   rules, uploads the bundle and waits until Central has published it. When a run fails, its
+   `jreleaser-output` artifact holds JReleaser's log.
+5. Raise the SDK version where authors read it: this README, the kite-provider-gradle-plugin README,
+   and the provider page of kitelang.cloud (`kitelang/content/docs/providers.mdx`).
+
+The workflow reads four secrets, the same ones kite-provider-gradle-plugin publishes with, from this
+repository or from the organisation:
+
+| Secret | Value |
+|---|---|
+| `MAVEN_USERNAME` | Username part of a Central Portal user token (central.sonatype.com/account) |
+| `MAVEN_PASSWORD` | Password part of that token |
+| `GPG_PUBLIC_KEY` | `gpg --armor --export <key id>`; the key must be on a public keyserver |
+| `GPG_PRIVATE_KEY` | `gpg --armor --export-secret-keys <key id>`, for a key without a passphrase |
+
+To see what a release would upload, without publishing anything, run
+`./gradlew publishAllPublicationsToStagingDeployRepository` and look in `build/staging-deploy`. JReleaser
+adds the `.asc` signatures when it deploys.
