@@ -13,6 +13,9 @@
 #   MAVEN_PASSWORD   Central Portal user token, password part
 #   GPG_PUBLIC_KEY   gpg --armor --export <key id>; the key must be on a public keyserver
 #   GPG_PRIVATE_KEY  gpg --armor --export-secret-keys <key id>; a key without a passphrase
+# The first step checks all four before anything is checked out or built, and names any secret that
+# is empty or not a key JReleaser can read. The check and its tests live in kite-provider-sdk, under
+# .github/actions/check-publish-secrets (kitecorp/kite-provider-sdk#11).
 
 name: Publish to Maven Central
 
@@ -42,24 +45,15 @@ jobs:
           echo "::error::Releases are published from main, after review. This run is on ${GITHUB_REF}."
           exit 1
 
-      - name: Check that the publishing secrets are set
-        env:
-          MAVEN_USERNAME: ${{ secrets.MAVEN_USERNAME }}
-          MAVEN_PASSWORD: ${{ secrets.MAVEN_PASSWORD }}
-          GPG_PUBLIC_KEY: ${{ secrets.GPG_PUBLIC_KEY }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-        # An organisation secret that this repository may not read arrives as an empty string
-        run: |
-          missing=""
-          for name in MAVEN_USERNAME MAVEN_PASSWORD GPG_PUBLIC_KEY GPG_PRIVATE_KEY; do
-            if [ -z "${!name}" ]; then
-              missing="${missing} ${name}"
-            fi
-          done
-          if [ -n "${missing}" ]; then
-            echo "::error::Secrets missing or empty for this repository:${missing}"
-            exit 1
-          fi
+      - name: Check the publishing secrets
+        # Before checkout and build, so an empty secret or a key JReleaser cannot read fails in
+        # seconds and by name. Pinned to the kite-provider-sdk commit that holds the check.
+        uses: kitecorp/kite-provider-sdk/.github/actions/check-publish-secrets@936beec8b1e15759d45f839238a343bcf9d6ee38
+        with:
+          maven-username: ${{ secrets.MAVEN_USERNAME }}
+          maven-password: ${{ secrets.MAVEN_PASSWORD }}
+          gpg-public-key: ${{ secrets.GPG_PUBLIC_KEY }}
+          gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
 
       - name: Check out
         uses: actions/checkout@v7
