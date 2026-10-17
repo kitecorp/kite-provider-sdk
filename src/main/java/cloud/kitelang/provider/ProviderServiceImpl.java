@@ -405,7 +405,11 @@ public class ProviderServiceImpl extends ProviderGrpc.ProviderImplBase {
             var propBuilder = cloud.kitelang.proto.v1.Property.newBuilder()
                     .setName(property.name())
                     .setType(ByteString.copyFromUtf8(mapType(property.type(), property.typeClass())))
-                    .setRequired(true) // Default to required
+                    .setRequired(property.required())
+                    // The flags follow Terraform's attribute model, which this proto copies:
+                    // optional means the user may leave it out, and a cloud (computed)
+                    // property is set by the provider, so the user can't set it at all
+                    .setOptional(!property.required() && !property.isCloud())
                     .setComputed(property.isCloud())
                     // The engine masks these in rendered plans/diffs; the flag
                     // must survive the wire or bridged sensitivity is lost

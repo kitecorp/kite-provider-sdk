@@ -61,7 +61,7 @@ public abstract class DocGeneratorBase {
                     .name(prop.name())
                     .type(formatType(prop.type(), prop.typeClass()))
                     .description(prop.description())
-                    .required(!isOptionalType(prop.typeClass()))
+                    .required(prop.required())
                     .cloudManaged(prop.cloud())
                     .importable(prop.importable())
                     .deprecated(prop.deprecationMessage() != null && !prop.deprecationMessage().isEmpty())
@@ -130,10 +130,6 @@ public abstract class DocGeneratorBase {
 
         // Fallback to 'any' for unknown types - prevents invalid type names
         return "any";
-    }
-
-    protected boolean isOptionalType(Class<?> typeClass) {
-        return typeClass != null && !typeClass.isPrimitive();
     }
 
     protected int getDomainOrder(String domain) {

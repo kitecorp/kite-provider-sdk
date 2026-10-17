@@ -61,7 +61,7 @@ dependencies {
     // their releases on Maven Central, and the published POM names these versions: publish them
     // first, then raise the versions here.
     api findProject(':kite-proto') ?: 'cloud.kitelang:kite-proto:0.2.0'
-    api findProject(':kite-api') ?: 'cloud.kitelang:kite-api:0.2.0'
+    api findProject(':kite-api') ?: 'cloud.kitelang:kite-api:0.3.0'
 
     // gRPC Netty transport for provider servers
     api 'io.grpc:grpc-netty-shaded:1.78.0'
