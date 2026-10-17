@@ -1,0 +1,40 @@
+name: Check the Maven Central publishing secrets
+description: >-
+  Fails a release in seconds, before checkout and build, when a publishing secret is empty or a GPG
+  key cannot be read, and names the secret that is wrong (kitecorp/kite-provider-sdk#11). The
+  publish workflows of kite-api, kite-proto and kite-provider-sdk all run it, pinned to a commit of
+  this repository.
+
+inputs:
+  maven-username:
+    description: Central Portal user token, username part
+    required: true
+  maven-password:
+    description: Central Portal user token, password part
+    required: true
+  gpg-public-key:
+    description: gpg --armor --export <key id>
+    required: true
+  gpg-private-key:
+    description: gpg --armor --export-secret-keys <key id>, a key without a passphrase
+    required: true
+
+runs:
+  using: composite
+  steps:
+    # The check reads the keys with Bouncy Castle, as JReleaser does; the release's own JDK is set
+    # up only after checkout
+    - name: Set up Java for the check
+      uses: actions/setup-java@v6
+      with:
+        java-version: '25'
+        distribution: 'temurin'
+
+    - name: Check the publishing secrets
+      shell: bash
+      env:
+        MAVEN_USERNAME: ${{ inputs.maven-username }}
+        MAVEN_PASSWORD: ${{ inputs.maven-password }}
+        GPG_PUBLIC_KEY: ${{ inputs.gpg-public-key }}
+        GPG_PRIVATE_KEY: ${{ inputs.gpg-private-key }}
+      run: bash "${{ github.action_path }}/check.sh"
