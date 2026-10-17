@@ -20,6 +20,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.MethodSource;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.net.ConnectException;
 import java.net.Inet4Address;
 import java.net.InetAddress;
@@ -28,6 +29,7 @@ import java.net.NetworkInterface;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.SocketException;
+import java.net.SocketTimeoutException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -131,16 +133,16 @@ class ProviderServerSecurityTest {
 
     @Test
     void connectionToANonLoopbackAddressOfThisMachine_isRefused() throws IOException {
-        var address = nonLoopbackAddress();
-        assumeTrue(address.isPresent(), "This machine has no up, non-loopback, non-link-local IPv4 address,"
-                + " so a connection from a non-loopback address cannot be attempted here");
-        // Control: the same address accepts a connection when something listens on every
-        // interface, so the refusal below comes from the provider's binding and not from
-        // the address being unreachable (a firewall, a down interface)
-        assertEquals(true, acceptsConnection(address.get()));
+        // The address passed the control, so the refusal below comes from the provider's
+        // binding and not from the address being unreachable
+        var address = reachableNonLoopbackAddress();
+        assumeTrue(address.isPresent(), "No up, non-loopback, non-link-local IPv4 address of this machine"
+                + " accepts a connection from this machine, so a connection from a non-loopback address"
+                + " cannot be attempted here");
 
         var ex = assertThrows(StatusRuntimeException.class,
-                () -> stub(address.get(), LAUNCH_COOKIE).healthCheck(HealthCheck.Request.getDefaultInstance()));
+                () -> stub(address.get(), LAUNCH_COOKIE).healthCheck(HealthCheck.Request.getDefaultInstance()),
+                "a call to " + address.get() + " must be refused");
 
         assertEquals(Status.Code.UNAVAILABLE, ex.getStatus().getCode());
         assertInstanceOf(ConnectException.class, ex.getCause());
@@ -164,12 +166,18 @@ class ProviderServerSecurityTest {
         return ClientCalls.blockingUnaryCall(channel, method, CallOptions.DEFAULT.withDeadlineAfter(10, TimeUnit.SECONDS), request);
     }
 
-    private static Optional<InetAddress> nonLoopbackAddress() throws SocketException {
+    /**
+     * The first up, non-loopback, non-link-local IPv4 address of this machine that passes the
+     * control in {@link #acceptsConnection}. Being up is not enough: a VPN tunnel's
+     * point-to-point address can come first and time out (kitecorp/kite-provider-sdk#13).
+     */
+    private static Optional<InetAddress> reachableNonLoopbackAddress() throws SocketException {
         return NetworkInterface.networkInterfaces()
                 .filter(ProviderServerSecurityTest::isUp)
                 .flatMap(NetworkInterface::inetAddresses)
                 .filter(address -> address instanceof Inet4Address)
                 .filter(address -> !address.isLoopbackAddress() && !address.isLinkLocalAddress())
+                .filter(ProviderServerSecurityTest::acceptsConnection)
                 .findFirst();
     }
 
@@ -181,10 +189,22 @@ class ProviderServerSecurityTest {
         }
     }
 
-    private static boolean acceptsConnection(InetAddress address) throws IOException {
+    /**
+     * The control: whether a listener on every interface can be reached at this address. When it
+     * can't (a firewall, a down interface, a VPN tunnel), a refused call proves nothing about the
+     * provider's binding.
+     */
+    private static boolean acceptsConnection(InetAddress address) {
         try (var listener = new ServerSocket(0); var socket = new Socket()) {
-            socket.connect(new InetSocketAddress(address, listener.getLocalPort()), 2_000);
-            return socket.isConnected();
+            try {
+                socket.connect(new InetSocketAddress(address, listener.getLocalPort()), 2_000);
+                return true;
+            } catch (SocketException | SocketTimeoutException unreachable) {
+                return false;
+            }
+        } catch (IOException e) {
+            // Opening the listener failed, which says nothing about the address
+            throw new UncheckedIOException(e);
         }
     }
 }
